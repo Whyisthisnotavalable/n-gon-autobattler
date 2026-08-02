@@ -35,12 +35,69 @@
   #sidebar-header {
     padding: 16px 16px 12px 16px;
     border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
   }
   #sidebar-header h1 {
     font-size: 16px; margin: 0 0 2px 0; font-weight: 700; letter-spacing: 0.2px;
   }
   #sidebar-header p { margin: 0; font-size: 12px; color: var(--sub); }
-
+  #fps-select {
+    padding: 8px 8px 12px 8px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  #fps-select > label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    font-size: 0.8em;
+  }
+  #fps-select > label > span:first-child {
+    width: 90px; 
+  }
+  #fps-select > label > input[type="range"] {
+    flex: 1; 
+  }
+  #fps-select > label > span:last-child {
+    width: 35px; 
+    text-align: right;
+  }
+  select {
+    font-size: 0.8em;
+    border: 1px #333 solid;
+    border-radius: 6px;
+    color: #000;
+    cursor: pointer;
+    margin-bottom: 5px;
+  }
+  .sidebar-toggle {
+    padding: 1px 10px;
+    border: none;
+    background: #eceef1;
+    color: var(--ink);
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.05s ease, background 0.15s ease;
+  }
+  .sidebar-toggle:hover {
+    background: #e2e4e8;
+  }
+  .sidebar-toggle:active {
+    transform: scale(0.97);
+  }
+  #show-btn {
+    display: none;
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 999;
+  }
   #team-row { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
   .team-btn {
     flex: 1; padding: 8px 0; border: 2px solid transparent;
@@ -78,9 +135,13 @@
   #fight-btn:hover { background: #34363d; }
   #reset-btn { background: #eceef1; color: var(--ink); }
   #reset-btn:hover { background: #e2e4e8; }
-  #credit { padding: 0 16px 14px 16px; font-size: 10.5px; color: #b0b4bb; text-align: center; }
-  #credit a { color: #9099a6; }
-
+  #show-btn {
+    display: none;
+    position: absolute;
+    top: 3em; 
+    left: 1em;
+    z-index: 999;
+  }
   #canvas-wrap { flex: 1; position: relative; background: #fbfbfc; }
   #canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 </style>
@@ -88,9 +149,15 @@
 <body>
   <div id="app">
     <div id="sidebar">
-      <div id="sidebar-header">
-        <h1>n-gon autobattler</h1>
-      </div>
+    <div id="sidebar-header">
+    <h1>auto-gon</h1>
+    <button class="sidebar-toggle" onclick="
+        document.getElementById('sidebar').style.display = 'none';
+        resizeCanvas();
+        document.getElementById('show-btn').style.display = 'block';
+    ">Hide</button>
+    </div>
+      <div id="fps-select"></div>
       <div id="team-row">
         <button id="team-a-btn" class="team-btn">Red Team</button>
         <button id="team-b-btn" class="team-btn">Blue Team</button>
@@ -102,12 +169,20 @@
         <button id="fight-btn">Fight</button>
       </div>
     </div>
+    <div id="show-btn">
+    <button class="sidebar-toggle" onclick="
+        document.getElementById('sidebar').style.display = 'flex';
+        resizeCanvas();
+        document.getElementById('show-btn').style.display = 'none';
+    ">Show</button>
+    </div>    
     <div id="canvas-wrap">
       <canvas id="canvas"></canvas>
     </div>
   </div>
 <script src='matter.min.js'></script>
 <script>
+
 const Engine = Matter.Engine,
     Events = Matter.Events,
     Composites = Matter.Composites,
@@ -212,8 +287,8 @@ const level = {
     isMobShields: false,
     exit: { x: 0, y: 0 },
     levels: [],
-    inGameText() { /* flavor-text popups: no-op */ },
-    newLevelOrPhase() { /* boss phase/level-transition hook: no-op */ },
+    inGameText() { },
+    newLevelOrPhase() { },
     laser(p1, p2) {
         const midX = (p1.x + p2.x) / 2, midY = (p1.y + p2.y) / 2;
         const len = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
@@ -239,6 +314,12 @@ const localSettings = {
 const lore = { techCount: 0, techGoal: 999 }; 
 const input = { down: false, up: false, left: false, right: false, fire: false };
 
+const b = {
+    inventory: [], guns: {}, 
+    orbitBot() { }, worm() { }, flea() { }, spore() { }, explosion() { },
+    targetedNail() { }, randomBot() { }, iceIX() { }, targetedBlock() { },
+};
+
 const powerUps = {
     randomize() { },
     spawn() { },
@@ -251,51 +332,68 @@ const powerUps = {
     setPowerUpMode() { },
     do() { },
 };
-
-
-
 const engine = Engine.create();
 engine.world.gravity.scale = 0; 
 engine.constraintIterations = 1;
+const invinciblilityFrames = 5; 
+const minCdamage = 0.05, maxCdamage = 1;
+const blockDmgScale = 0.02; 
+function enforceDefaultTiers() {
+    for (let i = 0; i < mob.length; i++) {
+        const me = mob[i];
+        if (me.tier === undefined) me.tier = me.isBoss ? 4 : 1;
+    }
+}
+const _originalCanCollide = Matter.Detector.canCollide;
+Matter.Detector.canCollide = function (filterA, filterB) {
+    if (filterA.team && filterB.team && filterA.team === filterB.team && (filterA.avoidOwnTeam || filterB.avoidOwnTeam)) {
+        return false;
+    }
+    return _originalCanCollide(filterA, filterB);
+};
 
-const IMMUNITY_FRAMES = 20;      
-const CONTACT_DMG_MIN = 0.05, CONTACT_DMG_MAX = 0.3, CONTACT_DMG_SCALE = 0.025; 
-const BLOCK_DMG_SCALE = 0.02;    
+function enforceCollisionMasks() {
+    const need = cat.mob | cat.mobBullet | cat.mobShield;
+    for (let i = 0; i < mob.length; i++) {
+        const me = mob[i];
+        const cf = me.collisionFilter;
+        if (!cf || cf.category === 0) continue;
+        if (me._originallyCollidedWithMobs === undefined) {
+            me._originallyCollidedWithMobs = !!(cf.mask & cat.mob);
+        }
+        cf.team = me.team;
+        cf.avoidOwnTeam = !me._originallyCollidedWithMobs;
+        cf.mask |= need;
+    }
+}
 
 function isImmune(who) {
     return !!(who.immuneUntilCycle && who.immuneUntilCycle > simulation.cycle);
 }
 function setImmune(who) {
-    who.immuneUntilCycle = simulation.cycle + IMMUNITY_FRAMES;
+    who.immuneUntilCycle = simulation.cycle + invinciblilityFrames;
 }
-
 function applyMobContact(attacker, defender) {
     if (!attacker.alive || !defender.alive) return;
-    if (attacker.isSlowed || attacker.isStunned) return; 
+    if (attacker.isSlowed || attacker.isStunned) return;
     if (isImmune(defender)) return;
-
-    resolveTargetFor(defender);
-
-    if (attacker.onHit) {
-        attacker.onHit();
-    } else {
-        const dmg = Math.min(Math.max(CONTACT_DMG_SCALE * Math.sqrt(attacker.mass), CONTACT_DMG_MIN), CONTACT_DMG_MAX) * attacker.damageScale();
-        defender.damage(dmg);
-        setImmune(defender);
-        if (defender.alive) {
-            defender.seePlayer.yes = true;
-            defender.seePlayer.recall = defender.memory + Math.round(defender.memory * Math.random());
-            defender.seePlayer.position.x = attacker.position.x;
-            defender.seePlayer.position.y = attacker.position.y;
-        }
-        if (defender.damageReduction) {
-            simulation.drawList.push({ x: defender.position.x, y: defender.position.y, radius: Math.log(dmg + 1.1) * 40 * defender.damageReduction + 3, color: simulation.mobDmgColor, time: simulation.drawTime });
-        }
+    pointGlobalsAt(defender);
+    const dmg = Math.min(Math.max(simulation.dmgScale * Math.sqrt(attacker.mass), minCdamage), maxCdamage) * attacker.damageScale();
+    defender.damage(dmg);
+    if (defender.alive) {
+        defender.seePlayer.yes = true;
+        defender.seePlayer.recall = defender.memory + Math.round(defender.memory * Math.random());
+        defender.seePlayer.position.x = attacker.position.x;
+        defender.seePlayer.position.y = attacker.position.y;
     }
+    if (defender.damageReduction) {
+        simulation.drawList.push({ x: defender.position.x, y: defender.position.y, radius: Math.log(dmg + 1.1) * 40 * defender.damageReduction + 3, color: simulation.mobDmgColor, time: simulation.drawTime });
+    }
+    if (attacker.onHit) attacker.onHit();
+    setImmune(defender);
 }
-
 function handleMobVsMob(mobA, mobB) {
-    if (mobA.team === mobB.team) return; 
+    if (mobA.team === mobB.team) return;
     applyMobContact(mobA, mobB);
     applyMobContact(mobB, mobA);
     if (mobA.alive && mobB.alive) {
@@ -305,12 +403,11 @@ function handleMobVsMob(mobA, mobB) {
         Body.setVelocity(mobB, { x: mobB.velocity.x - KICK * Math.cos(angle), y: mobB.velocity.y - KICK * Math.sin(angle) });
     }
 }
-
 function handleMobVsBody(who, obj) {
     if (obj.speed <= 9 || !who.alive) return;
     const v = Vector.magnitude(Vector.sub(who.velocity, obj.velocity));
     if (v <= 11) return;
-    const dmg = BLOCK_DMG_SCALE * v * obj.mass;
+    const dmg = blockDmgScale * v * obj.mass;
     who.damage(dmg, true);
     const stunTime = dmg / Math.sqrt(obj.mass);
     if (stunTime > 0.5 && who.memory !== Infinity) mobs.statusStun(who, 60 + 60 * Math.sqrt(stunTime));
@@ -318,7 +415,6 @@ function handleMobVsBody(who, obj) {
         simulation.drawList.push({ x: who.position.x, y: who.position.y, radius: Math.log(dmg + 1.1) * 40 * who.damageReduction + 3, color: simulation.playerDmgColor, time: simulation.drawTime });
     }
 }
-
 function collisionChecks(event) {
     const pairs = event.pairs;
     for (let i = 0, len = pairs.length; i < len; i++) {
@@ -332,7 +428,6 @@ function collisionChecks(event) {
         }
     }
 }
-
 Events.on(engine, "collisionStart", function (event) {
     collisionChecks(event);
 });
@@ -340,17 +435,14 @@ Events.on(engine, "collisionActive", function (event) {
     collisionChecks(event);
 });
 
-
-
 const simulation = {
     cycle: 0,
     delta: 1000 / 60,
-    g: 0.0024,                 
+    g: 0.0024,
     accelScale: 1,
-    difficulty: 1,             
+    difficulty: 1,
     difficultyMode: 1,
-    CDScale: 1,                
-    fpsCap: 60,
+    CDScale: 1,
     drawTime: 8,
     mobDmgColor: "rgba(255,0,0,0.7)",
     playerDmgColor: "rgba(0,0,0,0.7)",
@@ -363,6 +455,10 @@ const simulation = {
     onTitlePage: false,
     testing: false,
     analysis: 0,
+    fps: 60,
+    fpsInterval: 1000 / 60,
+    then: performance.now(),
+    dmgScale: 0.025,
     camera() { },              
     checks() { },
     clearMap() { },
@@ -371,7 +467,6 @@ const simulation = {
     splashReturn() { },
     inGameConsole() { },       
     updateGunHUD() { },
-
     drawList: [], 
     drawCircle() {
         let i = simulation.drawList.length;
@@ -462,7 +557,14 @@ const simulation = {
 function vertexCollision(v1, v1End, domains) {
     let best = { x: null, y: null, dist2: Infinity, who: null, v1: null, v2: null };
     for (let j = 0; j < domains.length; j++) {
-        const domain = domains[j];
+        let domain = domains[j];
+
+        const isPlayerRefDomain = domain.length > 0 && domain.length <= 2 &&
+            domain.every(b => b === playerBody || b === playerHead);
+        if (isPlayerRefDomain && currentActingMob) {
+            domain = livingEnemiesOf(currentActingMob.team);
+        }
+
         for (let i = 0; i < domain.length; i++) {
             const vertices = domain[i].vertices;
             const len = vertices.length - 1;
@@ -482,13 +584,16 @@ function vertexCollision(v1, v1End, domains) {
             }
         }
     }
+    if (best.who && best.who.mob && currentActingMob && best.who.team !== currentActingMob.team) {
+        pointGlobalsAt(best.who);
+    }
     return best;
 }
 
 
 
 const ARENA = { width: 3200, height: 2000 };
-const WALL = 120;
+const WALL = 240;
 
 function buildArena() {
     const w = ARENA.width, h = ARENA.height, t = WALL;
@@ -1877,8 +1982,7 @@ const mobs = {
     }
 };
 
-
-const NO_TARGET = Bodies.polygon(-100000, -100000, 3, 1); 
+const NO_TARGET = Bodies.polygon(-100000, -100000, 3, 1);
 
 let player = NO_TARGET, playerBody = NO_TARGET, playerHead = NO_TARGET;
 
@@ -1951,6 +2055,16 @@ const m = {
 };
 
 let currentActingTeam = null;
+let currentActingMob = null;
+
+function livingEnemiesOf(team) {
+    const out = [];
+    for (let i = 0; i < mob.length; i++) {
+        const cand = mob[i];
+        if (cand.alive && cand.team !== team) out.push(cand);
+    }
+    return out;
+}
 
 function nearestMobTeam(x, y, excludeMob) {
     let best = null, bestDist = Infinity;
@@ -1975,7 +2089,7 @@ function findNearestEnemy(me) {
     let best = null, bestDist = Infinity;
     for (let i = 0; i < mob.length; i++) {
         const cand = mob[i];
-        if (cand === me || !cand.alive || cand.team === me.team) continue;
+        if (cand === me || !cand.alive || cand.team === me.team || cand.collisionFilter.category === cat.mobShield) continue;
         const dx = cand.position.x - me.position.x, dy = cand.position.y - me.position.y;
         const d = dx * dx + dy * dy;
         if (d < bestDist) { bestDist = d; best = cand; }
@@ -1983,12 +2097,15 @@ function findNearestEnemy(me) {
     return best;
 }
 
-function resolveTargetFor(me) {
-    const target = findNearestEnemy(me) || NO_TARGET;
+function pointGlobalsAt(target) {
     player = target;
     playerBody = target;
     playerHead = target;
     m._target = target;
+}
+
+function resolveTargetFor(me) {
+    pointGlobalsAt(findNearestEnemy(me) || NO_TARGET);
 }
 
 function runMobAI() {
@@ -1997,15 +2114,16 @@ function runMobAI() {
     while (i--) {
         if (mob[i].alive) {
             currentActingTeam = mob[i].team;
+            currentActingMob = mob[i];
             resolveTargetFor(mob[i]);
             mob[i].do();
             currentActingTeam = null;
+            currentActingMob = null;
         } else {
             mob[i].replace(i);
         }
     }
 }
-
 
 const spawn = {
     pickList: ["starter", "starter"],
@@ -3179,7 +3297,7 @@ const spawn = {
                     function loop() {
                         if (!simulation.paused && !simulation.onTitlePage) {
                             count++
-                            if (count === 1260) {
+  if (count === 1260) {
                                 document.getElementById("health").style.display = "none"
                                 document.getElementById("health-bg").style.display = "none"
                                 document.getElementById("defense-bar").style.display = "none"
@@ -16263,11 +16381,8 @@ const spawn = {
         restitution: 0
     }
 };
-
-
 const TEAM_COLOR = { A: "#e6473d", B: "#3d7fe6" };
 const TEAM_LABEL = { A: "Red", B: "Blue" };
-
 const MOB_ROSTER = {
     regular: [
         { tier: 0, label: "Tier 0", names: ["starter"] },
@@ -16285,7 +16400,6 @@ const MOB_ROSTER = {
         { tier: "F", label: "Final", names: ["finalBoss"] },
     ],
 };
-
 function displayName(name) {
     return name
         .replace(/([a-z])([A-Z])/g, "$1 $2")
@@ -16390,7 +16504,7 @@ function buildRosterUI() {
         return wrap;
     }
 
-    root.appendChild(section("Mobs", MOB_ROSTER.regular));
+    root.appendChild(section("Regular Mobs", MOB_ROSTER.regular));
     root.appendChild(section("Bosses", MOB_ROSTER.bosses));
 }
 
@@ -16473,7 +16587,7 @@ function drawHUD() {
         ctx.fillStyle = game.winner ? TEAM_COLOR[game.winner] : "#333";
         ctx.textAlign = "center";
         ctx.font = "700 24px system-ui, -apple-system, Segoe UI, sans-serif";
-        ctx.fillText(game.winner ? `${TEAM_LABEL[game.winner]} Team Wins` : "Draw!", canvas.width / 2, canvas.height / 2 - 30);
+        ctx.fillText(game.winner ? `${TEAM_LABEL[game.winner]} Team Wins!` : "Draw!", canvas.width / 2, canvas.height / 2 - 30);
         ctx.font = "400 14px system-ui, -apple-system, Segoe UI, sans-serif";
         ctx.fillStyle = "#666";
         ctx.fillText("Click Reset to battle again", canvas.width / 2, canvas.height / 2 + 8);
@@ -16485,7 +16599,11 @@ function drawHUD() {
         ctx.textAlign = "left";
     }
 }
+
+
+
 let canvas, ctx;
+
 function drawTeamMarkers() {
     for (let i = 0; i < mob.length; i++) {
         const me = mob[i];
@@ -16498,28 +16616,32 @@ function drawTeamMarkers() {
     }
 }
 
-function mainLoop() {
+function mainLoop(now) {
+    requestAnimationFrame(mainLoop);
+    const elapsed = now - simulation.then;
+    if (elapsed < simulation.fpsInterval) return;
+    simulation.then = now - (elapsed % simulation.fpsInterval);
     simulation.gravity();
+    enforceDefaultTiers();
+    enforceCollisionMasks();
     Engine.update(engine, simulation.delta);
     simulation.wipe();
     applyCameraTransform();
     drawArena();
-    mobs.draw();               
+    mobs.draw();
     simulation.draw.body();
-
     if (game.state === "battle") {
         simulation.cycle++;
-        runMobAI();             
-        game.checkWin();        
+        runMobAI();
+        game.checkWin();
     }
-
-    drawTeamMarkers();          
+    drawTeamMarkers();
     simulation.drawCircle();
     simulation.runEphemera();
-
     drawHUD();
-    requestAnimationFrame(mainLoop);
 }
+
+requestAnimationFrame(mainLoop);
 
 window.onload = function () {
     canvas = document.getElementById("canvas");
@@ -16536,6 +16658,51 @@ window.onload = function () {
     requestAnimationFrame(mainLoop);
 };
 
+const fpsSelect = document.createElement("select");
+[30, 45, 60, 72, 120, 999].forEach(fps => {
+    const option = document.createElement("option");
+    option.value = fps;
+    option.textContent = `${fps} FPS`;
+    if (fps === 60) option.selected = true;
+    fpsSelect.appendChild(option);
+});
+fpsSelect.addEventListener("change", () => {
+    simulation.fps = Number(fpsSelect.value);
+    simulation.fpsInterval = 1000 / simulation.fps;
+    simulation.delta = simulation.fpsInterval;
+    simulation.then = performance.now();
+});
+document.getElementById("fps-select").appendChild(fpsSelect);
+
+function createSlider(property, min, max, step) {
+    const label = document.createElement("label");
+
+    const name = document.createElement("span");
+    name.textContent = property;
+
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = min;
+    slider.max = max;
+    slider.step = step;
+    slider.value = simulation[property];
+
+    const value = document.createElement("span");
+    value.textContent = simulation[property];
+
+    slider.addEventListener("input", () => {
+        simulation[property] = Number(slider.value);
+        value.textContent = slider.value;
+    });
+
+    label.append(name, slider, value);
+    document.getElementById("fps-select").appendChild(label);
+}
+createSlider("accelScale", 0.1, 5, 0.1);
+createSlider("difficulty", 0.1, 5, 0.1);
+createSlider("difficultyMode", 0.1, 5, 0.1);
+createSlider("CDScale", 0.1, 2, 0.1);
+createSlider("dmgScale", 0.025, 10, 0.025);
 </script>
 </body>
 </html>
