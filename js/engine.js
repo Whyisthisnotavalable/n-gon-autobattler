@@ -1,4 +1,3 @@
-
 const Engine = Matter.Engine,
     Events = Matter.Events,
     Composites = Matter.Composites,

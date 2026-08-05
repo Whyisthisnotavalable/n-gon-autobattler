@@ -249,9 +249,10 @@ function mainLoop(now) {
     enforceCollisionMasks();
     Engine.update(engine, simulation.delta);
     simulation.wipe();
+    updateCamera();
     applyCameraTransform();
     drawArena();
-    updateCamera();
+    updateMouseTransform();
     mobs.draw();
     simulation.draw.body();
     if (game.state === "battle") {

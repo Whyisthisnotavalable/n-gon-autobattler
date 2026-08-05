@@ -167,6 +167,17 @@ function applyCameraTransform() {
 function screenToArena(px, py) {
     return { x: (px - cameraOffsetX) / cameraScale, y: (py - cameraOffsetY) / cameraScale };
 }
+function updateMouseTransform() {
+    Matter.Mouse.setScale(mouse, {
+        x: 1 / cameraScale,
+        y: 1 / cameraScale
+    });
+
+    Matter.Mouse.setOffset(mouse, {
+        x: -cameraOffsetX / cameraScale,
+        y: -cameraOffsetY / cameraScale
+    });
+}
 const keys = {};
 
 window.addEventListener("keydown", e => {
