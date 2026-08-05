@@ -18,6 +18,9 @@
     <div id="sidebar-header">
     <h1>auto-gon</h1>
     <button class="sidebar-toggle" onclick="
+        noMarkers = !noMarkers;
+    ">Marker</button>
+    <button class="sidebar-toggle" onclick="
         document.getElementById('sidebar').style.display = 'none';
         resizeCanvas();
         document.getElementById('show-btn').style.display = 'block';

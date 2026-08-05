@@ -202,7 +202,7 @@ function updateCamera() {
 function zoomCamera(newScale) {
     const worldCenterX = (canvas.width / 2 - cameraOffsetX) / cameraScale;
     const worldCenterY = (canvas.height / 2 - cameraOffsetY) / cameraScale;
-    cameraScale = newScale;
+    cameraScale = Math.max(newScale, 0.001);
     cameraOffsetX = canvas.width / 2 - worldCenterX * cameraScale;
     cameraOffsetY = canvas.height / 2 - worldCenterY * cameraScale;
 }
