@@ -8,6 +8,7 @@
 <meta property="og:title" content="n-gon">
 <meta name="twitter:title" content="n-gon">
 <meta name="twitter:description" content="Browser-based autobattler video game with the matter.js physics engine.">
+<link rel='shortcut icon' href='favicon.ico' type='image/x-icon' />
 <title>auto-gon</title>
 <style>
   :root {
@@ -21,9 +22,10 @@
     --team-b: #3d7fe6;
   }
   * { box-sizing: border-box; }
+  @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap');
   html, body {
     margin: 0; padding: 0; height: 100%;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: "Chakra Petch" !important;
     color: var(--ink);
     background: var(--bg);
     overflow: hidden;
@@ -48,12 +50,36 @@
     font-size: 16px; margin: 0 0 2px 0; font-weight: 700; letter-spacing: 0.2px;
   }
   #sidebar-header p { margin: 0; font-size: 12px; color: var(--sub); }
+  #settings-panel {
+    border-bottom: 1px solid var(--line);
+  }
+  #settings-header {
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--sub);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    user-select: none;
+  }
+  #settings-header:hover { background: #f7f8f9; }
   #fps-select {
     padding: 8px 8px 12px 8px;
-    border-bottom: 1px solid var(--line);
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+    max-height: 300px;
+    overflow: hidden;
+    transition: max-height 0.2s ease, padding 0.2s ease;
+  }
+  #fps-select.collapsed {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
   }
   #fps-select > label {
     display: flex;
@@ -67,6 +93,14 @@
   }
   #fps-select > label > input[type="range"] {
     flex: 1; 
+  }
+  #fps-select > label > input[type="number"] {
+    flex: 1;
+    width: 0;
+    font-size: 0.9em;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 2px 4px;
   }
   #fps-select > label > span:last-child {
     width: 35px; 
@@ -127,6 +161,7 @@
     border: 1px solid var(--line); background: #fafafa; color: var(--ink);
     padding: 5px 9px; font-size: 12px; cursor: pointer;
     white-space: nowrap;
+    font-family: "Chakra Petch" !important;
   }
   .mob-btn:hover { background: #f0f1f3; }
   .mob-btn.selected { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -148,7 +183,7 @@
     z-index: 999;
   }
   #canvas-wrap { flex: 1; position: relative; background: #fbfbfc; }
-  #canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  #canvas { display: block; width: 100%; height: 100%; cursor: crosshair; background-color: #ddd; }
 </style>
 </head>
 <body>
@@ -162,7 +197,14 @@
         document.getElementById('show-btn').style.display = 'block';
     ">Hide</button>
     </div>
-      <div id="fps-select"></div>
+      <div id="settings-panel">
+        <div id="settings-header" onclick="
+            document.getElementById('fps-select').classList.toggle('collapsed');
+        ">
+          <span>Settings</span>
+        </div>
+        <div id="fps-select"></div>
+      </div>
       <div id="team-row">
         <button id="team-a-btn" class="team-btn">Red Team</button>
         <button id="team-b-btn" class="team-btn">Blue Team</button>
@@ -193,6 +235,8 @@ const Engine = Matter.Engine,
     Composites = Matter.Composites,
     Composite = Matter.Composite,
     Constraint = Matter.Constraint,
+    MouseConstraint = Matter.MouseConstraint,
+    Mouse = Matter.Mouse,
     Vertices = Matter.Vertices,
     Query = Matter.Query,
     Body = Matter.Body,
@@ -292,21 +336,101 @@ const level = {
     isMobShields: false,
     exit: { x: 0, y: 0 },
     levels: [],
+    enter: {
+        x: 0,
+        y: 0,
+        draw() {
+            ctx.beginPath();
+            ctx.moveTo(level.enter.x, level.enter.y + 30);
+            ctx.lineTo(level.enter.x, level.enter.y - 80);
+            ctx.bezierCurveTo(level.enter.x, level.enter.y - 170, level.enter.x + 100, level.enter.y - 170, level.enter.x + 100, level.enter.y - 80);
+            ctx.lineTo(level.enter.x + 100, level.enter.y + 30);
+            ctx.lineTo(level.enter.x, level.enter.y + 30);
+            ctx.fillStyle = "#ccc";
+            ctx.fill();
+        }
+    },
     inGameText() { },
     newLevelOrPhase() { },
-    laser(p1, p2) {
-        const midX = (p1.x + p2.x) / 2, midY = (p1.y + p2.y) / 2;
-        const len = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
-        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-        const seg = Bodies.rectangle(midX, midY, len, 4, {
-            isStatic: true,
-            angle,
-            isSensor: true,
-            collisionFilter: { group: 0, category: cat.map, mask: 0 },
-        });
-        map.push(seg);
-        Composite.add(engine.world, seg);
-        return seg;
+    laser(p1, p2, damage = 0.12, color = "#f00") {
+        return {
+            isOn: true,
+            position: p1,
+            look: p2,
+            color: color,
+            query() {
+                if (!m.isTimeDilated) {
+                    let best = { x: null, y: null, dist2: Infinity, who: null, v1: null, v2: null }
+                    best = vertexCollision(this.position, this.look, m.isCloak ? [map, body] : [map, body, [playerBody, playerHead]]);
+                    // hitting player
+                    if ((best.who === playerBody || best.who === playerHead) && m.immuneCycle < m.cycle) {
+                        m.immuneCycle = m.cycle + m.collisionImmuneCycles + 60; //player is immune to damage for an extra second
+                        const dmg = damage * spawn.dmgToPlayerByLevelsCleared();
+                        m.takeDamage(dmg);
+                        simulation.drawList.push({ //add dmg to draw queue
+                            x: best.x,
+                            y: best.y,
+                            radius: dmg * 1500,
+                            color: "rgba(255,0,0,0.5)",
+                            time: 20
+                        });
+                    }
+                    //draw
+                    if (best.dist2 === Infinity) best = this.look;
+                    ctx.beginPath();
+                    ctx.moveTo(this.position.x, this.position.y);
+                    ctx.lineTo(best.x, best.y);
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 5;
+                    ctx.setLineDash([50 + 200 * Math.random(), 50 * Math.random()]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            },
+            countDown: 0,
+            countTotal: 690,
+            countDelay: 630,
+            motionQuery() {
+                if (!m.isTimeDilated) {
+                    let best = { x: null, y: null, dist2: Infinity, who: null, v1: null, v2: null }
+                    best = vertexCollision(this.position, this.look, m.isCloak ? [map, body] : [map, body, [playerBody, playerHead]]);
+
+                    if (this.countDown === 0) {
+                        if ((best.who === playerBody || best.who === playerHead)) this.countDown = this.countTotal // hitting player
+                        ctx.strokeStyle = `rgba(255,255,255,0.4)`;
+                        ctx.lineWidth = 8 + 3 * Math.sin(simulation.cycle * 0.3);
+                    } else if (this.countDown > this.countDelay) {
+                        ctx.strokeStyle = `rgba(255,255,255,0.8)`;
+                        ctx.lineWidth = 11;
+                        this.countDown--
+                    } else {
+                        this.countDown--
+                        if ((best.who === playerBody || best.who === playerHead) && m.immuneCycle < m.cycle) { // hitting player
+                            m.immuneCycle = m.cycle + m.collisionImmuneCycles + 60; //player is immune to damage for an extra second
+                            const dmg = damage * spawn.dmgToPlayerByLevelsCleared()
+                            m.takeDamage(dmg);
+                            simulation.drawList.push({ //add dmg to draw queue
+                                x: best.x,
+                                y: best.y,
+                                radius: dmg * 1500,
+                                color: "rgba(255,0,0,0.5)",
+                                time: 20
+                            });
+                        }
+                        ctx.strokeStyle = this.color;
+                        ctx.lineWidth = 5;
+                        ctx.setLineDash([50 + 200 * Math.random(), 50 * Math.random()]);
+                    }
+                    //draw
+                    if (best.dist2 === Infinity) best = this.look;
+                    ctx.beginPath();
+                    ctx.moveTo(this.position.x, this.position.y);
+                    ctx.lineTo(best.x, best.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            },
+        }
     },
     custom() { },
     customTopLayer() { },
@@ -340,9 +464,6 @@ const powerUps = {
 const engine = Engine.create();
 engine.world.gravity.scale = 0; 
 engine.constraintIterations = 1;
-const invinciblilityFrames = 5; 
-const minCdamage = 0.05, maxCdamage = 1;
-const blockDmgScale = 0.02; 
 function enforceDefaultTiers() {
     for (let i = 0; i < mob.length; i++) {
         const me = mob[i];
@@ -376,14 +497,14 @@ function isImmune(who) {
     return !!(who.immuneUntilCycle && who.immuneUntilCycle > simulation.cycle);
 }
 function setImmune(who) {
-    who.immuneUntilCycle = simulation.cycle + invinciblilityFrames;
+    who.immuneUntilCycle = simulation.cycle + simulation.invFrams;
 }
 function applyMobContact(attacker, defender) {
     if (!attacker.alive || !defender.alive) return;
     if (attacker.isSlowed || attacker.isStunned) return;
     if (isImmune(defender)) return;
     pointGlobalsAt(defender);
-    const dmg = Math.min(Math.max(simulation.dmgScale * Math.sqrt(attacker.mass), minCdamage), maxCdamage) * attacker.damageScale();
+    const dmg = Math.min(Math.max(simulation.dmgScale * Math.sqrt(attacker.mass), simulation.minCdamage), simulation.maxCdamage) * attacker.damageScale();
     defender.damage(dmg);
     if (defender.alive) {
         defender.seePlayer.yes = true;
@@ -403,16 +524,15 @@ function handleMobVsMob(mobA, mobB) {
     applyMobContact(mobB, mobA);
     if (mobA.alive && mobB.alive) {
         const angle = Math.atan2(mobA.position.y - mobB.position.y, mobA.position.x - mobB.position.x);
-        const KICK = 3;
-        Body.setVelocity(mobA, { x: mobA.velocity.x + KICK * Math.cos(angle), y: mobA.velocity.y + KICK * Math.sin(angle) });
-        Body.setVelocity(mobB, { x: mobB.velocity.x - KICK * Math.cos(angle), y: mobB.velocity.y - KICK * Math.sin(angle) });
+        Body.setVelocity(mobA, { x: mobA.velocity.x + simulation.knockback * Math.cos(angle), y: mobA.velocity.y + simulation.knockback * Math.sin(angle) });
+        Body.setVelocity(mobB, { x: mobB.velocity.x - simulation.knockback * Math.cos(angle), y: mobB.velocity.y - simulation.knockback * Math.sin(angle) });
     }
 }
 function handleMobVsBody(who, obj) {
     if (obj.speed <= 9 || !who.alive) return;
     const v = Vector.magnitude(Vector.sub(who.velocity, obj.velocity));
     if (v <= 11) return;
-    const dmg = blockDmgScale * v * obj.mass;
+    const dmg = simulation.blockDmgScale * v * obj.mass;
     who.damage(dmg, true);
     const stunTime = dmg / Math.sqrt(obj.mass);
     if (stunTime > 0.5 && who.memory !== Infinity) mobs.statusStun(who, 60 + 60 * Math.sqrt(stunTime));
@@ -464,6 +584,11 @@ const simulation = {
     fpsInterval: 1000 / 60,
     then: performance.now(),
     dmgScale: 0.025,
+    invFrames: 5,
+    minCdamage: 0.05,
+    maxCdamage: 1,
+    blockDmgScale: 0.02,
+    knockback: 3,
     camera() { },              
     checks() { },
     clearMap() { },
@@ -595,28 +720,45 @@ function vertexCollision(v1, v1End, domains) {
     return best;
 }
 
-
-
 const ARENA = { width: 3200, height: 2000 };
 const WALL = 240;
 
 function buildArena() {
-    const w = ARENA.width, h = ARENA.height, t = WALL;
-    const walls = [
-        Bodies.rectangle(w / 2, h + t / 2, w + t * 2, t, { isStatic: true }),   
-        Bodies.rectangle(w / 2, -t / 2, w + t * 2, t, { isStatic: true }),     
-        Bodies.rectangle(-t / 2, h / 2, t, h + t * 2, { isStatic: true }),     
-        Bodies.rectangle(w + t / 2, h / 2, t, h + t * 2, { isStatic: true }),  
-    ];
-    for (const wall of walls) {
-        wall.collisionFilter.category = cat.map;
-        wall.collisionFilter.mask = cat.player | cat.body | cat.bullet | cat.mob | cat.mobBullet;
-        map.push(wall);
-        Composite.add(engine.world, wall);
-    }
+    // const w = ARENA.width, h = ARENA.height, t = WALL;
+    // const walls = [
+    //     Bodies.rectangle(w / 2, h + t / 2, w + t * 2, t, { isStatic: true }),   
+    //     Bodies.rectangle(w / 2, -t / 2, w + t * 2, t, { isStatic: true }),     
+    //     Bodies.rectangle(-t / 2, h / 2, t, h + t * 2, { isStatic: true }),     
+    //     Bodies.rectangle(w + t / 2, h / 2, t, h + t * 2, { isStatic: true }),  
+    // ];
+    // for (const wall of walls) {
+    //     wall.collisionFilter.category = cat.map;
+    //     wall.collisionFilter.mask = cat.player | cat.body | cat.bullet | cat.mob | cat.mobBullet;
+    //     map.push(wall);
+    //     Composite.add(engine.world, wall);
+    // }
+    level.enter.x = -50;
+    level.enter.y = -230;
+    spawn.mapRectNow(level.enter.x, level.enter.y + 20, 100, 20);
+    spawn.mapRectNow(5500, -330 + 20, 100, 20); //spawn this because the real exit is in the wrong spot
+    spawn.mapRectNow(-1950, 0, 8200, 1800); //ground
+    spawn.mapRectNow(-1950, -1500, 1800, 1900); //left wall
+    spawn.mapRectNow(-1950, -3300, 8200, 1800); //roof
+    spawn.mapRectNow(-250, -200, 1000, 300); // shelf
+    spawn.mapRectNow(-250, -1700, 1000, 1250); // shelf roof
+    spawn.mapRectNow(705, -210, 25, 50);
+    spawn.mapRectNow(725, -220, 25, 50);
+    spawn.bodyRect(750, -125, 125, 125);
+    spawn.bodyRect(875, -50, 50, 50);
+
+    spawn.mapRectNow(5400, -1700, 400, 1150); //right wall
+    spawn.mapRectNow(5400, -300, 400, 400); //right wall
+    spawn.mapRectNow(5700, -3300, 1800, 5100); //right wall
+    spawn.mapRectNow(5403, -650, 400, 450); //blocking exit
 }
 
 function drawArena() {
+    level.enter.draw();
     ctx.beginPath();
     for (let i = 0; i < map.length; i++) {
         const vertices = map[i].vertices;
@@ -630,12 +772,24 @@ function drawArena() {
 
 let cameraScale = 1, cameraOffsetX = 0, cameraOffsetY = 0;
 function updateCameraFit() {
-    const margin = 60;
-    const sx = (canvas.width - margin * 2) / ARENA.width;
-    const sy = (canvas.height - margin * 2) / ARENA.height;
+    const margin = -400;
+    let left = Infinity;
+    let right = -Infinity;
+    let top = Infinity;
+    let bottom = -Infinity;
+    for (const body of map) {
+        left = Math.min(left, body.bounds.min.x);
+        right = Math.max(right, body.bounds.max.x);
+        top = Math.min(top, body.bounds.min.y);
+        bottom = Math.max(bottom, body.bounds.max.y);
+    }
+    const mapWidth = right - left;
+    const mapHeight = bottom - top;
+    const sx = (canvas.width - margin * 2) / mapWidth;
+    const sy = (canvas.height - margin * 2) / mapHeight;
     cameraScale = Math.min(sx, sy);
-    cameraOffsetX = (canvas.width - ARENA.width * cameraScale) / 2;
-    cameraOffsetY = (canvas.height - ARENA.height * cameraScale) / 2;
+    cameraOffsetX = canvas.width / 2 - ((left + right) / 2) * cameraScale;
+    cameraOffsetY = canvas.height / 2 - ((top + bottom) / 2) * cameraScale;
 }
 function applyCameraTransform() {
     ctx.setTransform(cameraScale, 0, 0, cameraScale, cameraOffsetX, cameraOffsetY);
@@ -643,7 +797,34 @@ function applyCameraTransform() {
 function screenToArena(px, py) {
     return { x: (px - cameraOffsetX) / cameraScale, y: (py - cameraOffsetY) / cameraScale };
 }
+const keys = {};
 
+window.addEventListener("keydown", e => {
+    keys[e.key.toLowerCase()] = true;
+});
+
+window.addEventListener("keyup", e => {
+    keys[e.key.toLowerCase()] = false;
+});
+function updateCamera() {
+    const moveSpeed = 8;
+    const zoomSpeed = 0.01;
+
+    if (keys["w"]) cameraOffsetY += moveSpeed;
+    if (keys["s"]) cameraOffsetY -= moveSpeed;
+    if (keys["a"]) cameraOffsetX += moveSpeed;
+    if (keys["d"]) cameraOffsetX -= moveSpeed;
+
+    if (keys["q"]) zoomCamera(cameraScale + zoomSpeed);;
+    if (keys["e"]) zoomCamera(cameraScale - zoomSpeed);;
+}
+function zoomCamera(newScale) {
+    const worldCenterX = (canvas.width / 2 - cameraOffsetX) / cameraScale;
+    const worldCenterY = (canvas.height / 2 - cameraOffsetY) / cameraScale;
+    cameraScale = newScale;
+    cameraOffsetX = canvas.width / 2 - worldCenterX * cameraScale;
+    cameraOffsetY = canvas.height / 2 - worldCenterY * cameraScale;
+}
 
 let mob = [];
 const mobs = {
@@ -2088,6 +2269,21 @@ mobs.spawn = function (xPos, yPos, sides, radius, color) {
     _originalMobsSpawn(xPos, yPos, sides, radius, color);
     const created = mob[mob.length - 1];
     created.team = currentActingTeam !== null ? currentActingTeam : nearestMobTeam(xPos, yPos, created);
+    const originalDamage = created.damage;
+    created.damage = function (dmg, isBypassShield) {
+        if (this._inDeathSequence) return;
+        return originalDamage.call(this, dmg, isBypassShield);
+    };
+    const originalDeath = created.death;
+    created.death = function () {
+        if (this._inDeathSequence) return;
+        this._inDeathSequence = true;
+        try {
+            originalDeath.call(this);
+        } finally {
+            this._inDeathSequence = false;        
+        }
+    };
 };
 
 function findNearestEnemy(me) {
@@ -16283,7 +16479,6 @@ const spawn = {
         who.collisionFilter.mask = cat.player | cat.map | cat.body | cat.bullet | cat.powerUp | cat.mob | cat.mobBullet;
         Matter.Body.setStatic(who, true); 
         Composite.add(engine.world, who); 
-        if (isRedrawMap) simulation.draw.setPaths()
     },
     mapVertexNow(x, y, vector, properties, isRedrawMap = true) { 
         map[map.length] = Matter.Bodies.fromVertices(x, y, Vertices.fromPath(vector), properties);
@@ -16419,8 +16614,8 @@ const game = {
     winner: null,
 
     place(type, x, y, team) {
-        x = Math.max(WALL + 60, Math.min(ARENA.width - WALL - 60, x));
-        y = Math.max(WALL + 60, Math.min(ARENA.height - WALL - 60, y));
+        // x = Math.max(WALL + 60, Math.min(ARENA.width - WALL - 60, x));
+        // y = Math.max(WALL + 60, Math.min(ARENA.height - WALL - 60, y));
         currentActingTeam = team;
         try {
             if (type === "tetherBoss") {
@@ -16560,11 +16755,21 @@ function resizeCanvas() {
     canvas.width = wrap.clientWidth;
     canvas.height = wrap.clientHeight;
     updateCameraFit();
+
+    Matter.Mouse.setScale(mouse, {
+        x: 1 / cameraScale,
+        y: 1 / cameraScale
+    });
+
+    Matter.Mouse.setOffset(mouse, {
+        x: -cameraOffsetX / cameraScale,
+        y: -cameraOffsetY / cameraScale
+    });
 }
 
 function drawHUD() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.font = "600 15px system-ui, -apple-system, Segoe UI, sans-serif";
+    ctx.font = `600 15px "Chakra Petch"`;
     ctx.textBaseline = "top";
 
     const counts = game.counts();
@@ -16579,7 +16784,7 @@ function drawHUD() {
         flashMessageTimer--;
         ctx.fillStyle = "rgba(30,30,30,0.85)";
         ctx.textAlign = "center";
-        ctx.font = "600 14px system-ui, -apple-system, Segoe UI, sans-serif";
+        ctx.font = `600 14px "Chakra Petch"`;
         ctx.fillText(flashMessageText, canvas.width / 2, 14);
         ctx.textAlign = "left";
     }
@@ -16591,23 +16796,21 @@ function drawHUD() {
         ctx.strokeRect(canvas.width / 2 - 160, canvas.height / 2 - 46, 320, 92);
         ctx.fillStyle = game.winner ? TEAM_COLOR[game.winner] : "#333";
         ctx.textAlign = "center";
-        ctx.font = "700 24px system-ui, -apple-system, Segoe UI, sans-serif";
+        ctx.font = `700 24px "Chakra Petch"`;
         ctx.fillText(game.winner ? `${TEAM_LABEL[game.winner]} Team Wins!` : "Draw!", canvas.width / 2, canvas.height / 2 - 30);
-        ctx.font = "400 14px system-ui, -apple-system, Segoe UI, sans-serif";
+        ctx.font = `400 14px "Chakra Petch"`;
         ctx.fillStyle = "#666";
         ctx.fillText("Click Reset to battle again", canvas.width / 2, canvas.height / 2 + 8);
         ctx.textAlign = "left";
     } else if (game.state === "placing") {
-        ctx.fillStyle = "rgba(60,60,60,0.7)";
+        ctx.fillStyle = "rgba(160,160,160,0.7)";
         ctx.textAlign = "center";
         ctx.fillText("Click the arena to place a mob", canvas.width / 2, canvas.height - 26);
         ctx.textAlign = "left";
     }
 }
 
-
-
-let canvas, ctx;
+let canvas, ctx, mouse, mouseConstraint;
 
 function drawTeamMarkers() {
     for (let i = 0; i < mob.length; i++) {
@@ -16633,12 +16836,16 @@ function mainLoop(now) {
     simulation.wipe();
     applyCameraTransform();
     drawArena();
+    updateCamera();
     mobs.draw();
     simulation.draw.body();
     if (game.state === "battle") {
+        mouseConstraint.collisionFilter.mask = 0xFFFFFFFF;
         simulation.cycle++;
         runMobAI();
         game.checkWin();
+    } else {
+        mouseConstraint.collisionFilter.mask = 0;
     }
     drawTeamMarkers();
     simulation.drawCircle();
@@ -16652,14 +16859,21 @@ window.onload = function () {
     canvas = document.getElementById("canvas");
     ctx = canvas.getContext("2d");
     mobs.draw = mobs.drawDefault;
-
+    mouse = Mouse.create(canvas);
+    mouseConstraint = MouseConstraint.create(engine, {
+        mouse,
+        constraint: {
+            stiffness: 0.2
+        }
+    });
+    Composite.add(engine.world, mouseConstraint);
     resizeCanvas();
     buildArena();
     buildRosterUI();
     setupControls();
     selectMob("slasher", document.querySelector('.mob-btn[data-name="slasher"]'));
     selectTeam("A");
-
+    updateCameraFit();
     requestAnimationFrame(mainLoop);
 };
 
@@ -16679,7 +16893,7 @@ fpsSelect.addEventListener("change", () => {
 });
 document.getElementById("fps-select").appendChild(fpsSelect);
 
-function createSlider(property, min, max, step) {
+function createSlider(obj, property, min, max, step) {
     const label = document.createElement("label");
 
     const name = document.createElement("span");
@@ -16690,24 +16904,50 @@ function createSlider(property, min, max, step) {
     slider.min = min;
     slider.max = max;
     slider.step = step;
-    slider.value = simulation[property];
+    slider.value = obj[property];
 
     const value = document.createElement("span");
-    value.textContent = simulation[property];
+    value.textContent = obj[property];
 
     slider.addEventListener("input", () => {
-        simulation[property] = Number(slider.value);
+        obj[property] = Number(slider.value);
         value.textContent = slider.value;
     });
 
     label.append(name, slider, value);
     document.getElementById("fps-select").appendChild(label);
 }
-createSlider("accelScale", 0.1, 5, 0.1);
-createSlider("difficulty", 0.1, 5, 0.1);
-createSlider("difficultyMode", 0.1, 5, 0.1);
-createSlider("CDScale", 0.1, 2, 0.1);
-createSlider("dmgScale", 0.025, 10, 0.025);
+
+function createTextInput(obj, property, step) {
+    const label = document.createElement("label");
+
+    const name = document.createElement("span");
+    name.textContent = property;
+
+    const input = document.createElement("input");
+    input.type = "number";
+    if (step !== undefined) input.step = step;
+    input.value = obj[property];
+
+    input.addEventListener("input", () => {
+        const n = Number(input.value);
+        if (!Number.isNaN(n)) obj[property] = n;
+    });
+
+    label.append(name, input);
+    document.getElementById("fps-select").appendChild(label);
+}
+
+createSlider(simulation, "accelScale", 0.1, 5, 0.1);
+createSlider(simulation, "difficulty", 0.1, 5, 0.1);
+createSlider(simulation, "difficultyMode", 0.1, 5, 0.1);
+createSlider(simulation, "CDScale", 0.1, 2, 0.1);
+createTextInput(simulation, "dmgScale", 0.025);
+createSlider(simulation, "invFrames", 0, 60, 1);
+createTextInput(simulation, "minCdamage", 0);
+createTextInput(simulation, "maxCdamage", 0);
+createSlider(simulation, "knockback", 0, 15, 0.5);
+createTextInput(level, "levelsCleared", 1);
 </script>
 </body>
 </html>
