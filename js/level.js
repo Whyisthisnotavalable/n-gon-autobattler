@@ -124,7 +124,7 @@ function buildArena() {
     spawn.mapRectNow(5400, -1700, 400, 1150); //right wall
     spawn.mapRectNow(5400, -300, 400, 400); //right wall
     spawn.mapRectNow(5700, -3300, 1800, 5100); //right wall
-    spawn.mapRectNow(5403, -650, 400, 450); //blocking exit
+    // spawn.mapRectNow(5403, -650, 400, 450); //blocking exit
 }
 
 function drawArena() {
