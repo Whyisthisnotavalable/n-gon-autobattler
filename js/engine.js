@@ -102,6 +102,7 @@ const localSettings = {
 };
 const lore = { techCount: 0, techGoal: 999 }; 
 const input = { down: false, up: false, left: false, right: false, fire: false };
+const mouseMove = { reset() { } };
 
 const b = {
     inventory: [], guns: {}, 
@@ -249,7 +250,7 @@ const simulation = {
     maxCdamage: 1,
     blockDmgScale: 0.02,
     knockback: 3,
-    camera() { },              
+    camera() { ctx.save(); },
     checks() { },
     clearMap() { },
     loop() { },                

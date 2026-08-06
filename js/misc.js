@@ -29,7 +29,6 @@ function displayName(name) {
 const game = {
     state: "placing", 
     winner: null,
-
     place(type, x, y, team) {
         currentActingTeam = team;
         try {
@@ -42,15 +41,15 @@ const game = {
             currentActingTeam = null;
         }
     },
-
     start() {
         if (mob.filter(m => m.alive && m.team === "A").length === 0 || mob.filter(m => m.alive && m.team === "B").length === 0) return false;
         game.state = "battle";
         game.winner = null;
         return true;
     },
-
     reset() {
+        for (let i = map.length - 1; i >= 0; i--) Composite.remove(engine.world, map[i]);
+        map.length = 0;
         for (let i = mob.length - 1; i >= 0; i--) Composite.remove(engine.world, mob[i]);
         mob.length = 0;
         for (let i = body.length - 1; i >= 0; i--) Composite.remove(engine.world, body[i]);
@@ -65,10 +64,8 @@ const game = {
         game.state = "placing";
         game.winner = null;
 
-        spawn.bodyRect(750, -125, 125, 125);
-        spawn.bodyRect(875, -50, 50, 50);
+        level.final();
     },
-
     checkWin() {
         if (game.state !== "battle") return;
         const aliveA = mob.some(m => m.alive && m.team === "A");
@@ -78,7 +75,6 @@ const game = {
             game.winner = (aliveA && !aliveB) ? "A" : (aliveB && !aliveA) ? "B" : null; 
         }
     },
-
     counts() {
         return {
             A: mob.filter(m => m.alive && m.team === "A").length,
@@ -86,8 +82,6 @@ const game = {
         };
     },
 };
-
-
 
 let selectedTeam = "A";
 let selectedMob = "slasher";
@@ -242,63 +236,11 @@ function drawTeamMarkers() {
         ctx.stroke();
     }
 }
-let s = { //mech statue
-    x: 0,
-    y: -305,
-    angle: 0,
-    scale: 1,
-    h: { //hip
-        x: 12,
-        y: 24
-    },
-    k: { //knee
-        x: -30.96, //-17.38
-        y: 58.34, //70.49
-    },
-    f: { //foot
-        x: 0,
-        y: 91 //112
-    },
-    fillColor: "hsl(0,0%,100%)", //white
-    fillColorDark: "hsl(0,0%,75%)", //25% from white
-}
-function statueLeg(shift, color) {
-    ctx.save();
-    ctx.translate(shift, shift);
-    //front leg
-    let stroke = color;
-    ctx.beginPath();
-    ctx.moveTo((s.h.x + shift) * s.scale, (s.h.y + shift) * s.scale);
-    ctx.lineTo((s.k.x + 2 * shift) * s.scale, (s.k.y + shift) * s.scale);
-    ctx.lineTo((s.f.x + shift) * s.scale, (s.f.y + shift) * s.scale);
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 7 * s.scale;
-    ctx.stroke();
-    //toe lines
-    ctx.beginPath();
-    ctx.moveTo((s.f.x + shift) * s.scale, (s.f.y + shift) * s.scale);
-    ctx.lineTo((s.f.x - 15 + shift) * s.scale, (s.f.y + 5 + shift) * s.scale);
-    ctx.moveTo((s.f.x + shift) * s.scale, (s.f.y + shift) * s.scale);
-    ctx.lineTo((s.f.x + 15 + shift) * s.scale, (s.f.y + 5 + shift) * s.scale);
-    ctx.lineWidth = 4 * s.scale;
-    ctx.stroke();
-    //hip joint
-    ctx.beginPath();
-    ctx.arc((s.h.x + shift) * s.scale, (s.h.y + shift) * s.scale, 11 * s.scale, 0, 2 * Math.PI);
-    //knee joint
-    ctx.moveTo((s.k.x + 7 + 2 * shift) * s.scale, (s.k.y + shift) * s.scale);
-    ctx.arc((s.k.x + 2 * shift) * s.scale, (s.k.y + shift) * s.scale, 7 * s.scale, 0, 2 * Math.PI);
-    //foot joint
-    ctx.moveTo((s.f.x + 6 + shift) * s.scale, (s.f.y + shift) * s.scale);
-    ctx.arc((s.f.x + shift) * s.scale, (s.f.y + shift) * s.scale, 6 * s.scale, 0, 2 * Math.PI);
-    ctx.fillStyle = s.fillColor;
-    ctx.fill();
-    ctx.lineWidth = 2 * s.scale;
-    ctx.stroke();
-    ctx.restore();
-}
 function mainLoop(now) {
     requestAnimationFrame(mainLoop);
+    ctx.restore();
+    ctx.save();
+
     const elapsed = now - simulation.then;
     if (elapsed < simulation.fpsInterval) return;
     simulation.then = now - (elapsed % simulation.fpsInterval);
@@ -309,29 +251,14 @@ function mainLoop(now) {
     simulation.wipe();
     updateCamera();
     applyCameraTransform();
+    level.custom();
     drawArena();
     updateMouseTransform();
-    ctx.save();
-    ctx.translate(s.x, s.y);
-    statueLeg(-3, "#4a4a4a");
-    statueLeg(0, "#333");
-    ctx.rotate(s.angle);
-    ctx.beginPath();
-    ctx.arc(0, 0, 30 * s.scale, 0, 2 * Math.PI);
-    let grd = ctx.createLinearGradient(-30 * s.scale, 0, 30 * s.scale, 0);
-    grd.addColorStop(0, s.fillColorDark);
-    grd.addColorStop(1, s.fillColor);
-    ctx.fillStyle = grd;
-    ctx.fill();
-    ctx.arc(15 * s.scale, 0, 4 * s.scale, 0, 2 * Math.PI);
-    ctx.strokeStyle = "#333";
-    ctx.lineWidth = 2 * s.scale;
-    ctx.stroke();
-    ctx.restore();
     simulation.drawCircle();
     simulation.runEphemera();
     mobs.draw();
     simulation.draw.body();
+    level.customTopLayer();
     if (game.state === "battle") {
         mouseConstraint.collisionFilter.mask = 0xFFFFFFFF;
         simulation.cycle++;
@@ -359,7 +286,7 @@ window.onload = function () {
     });
     Composite.add(engine.world, mouseConstraint);
     resizeCanvas();
-    buildArena();
+    level.final();
     buildRosterUI();
     setupControls();
     selectMob("slasher", document.querySelector('.mob-btn[data-name="slasher"]'));

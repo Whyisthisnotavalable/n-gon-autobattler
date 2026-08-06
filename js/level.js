@@ -102,33 +102,107 @@ const level = {
             },
         }
     },
+    final() {
+        level.enter.x = -50;
+        level.enter.y = -230;
+        spawn.mapRectNow(level.enter.x, level.enter.y + 20, 100, 20);
+        spawn.mapRectNow(5500, -330 + 20, 100, 20); //spawn this because the real exit is in the wrong spot
+        spawn.mapRectNow(-1950, 0, 8200, 1800); //ground
+        spawn.mapRectNow(-1950, -1500, 1800, 1900); //left wall
+        spawn.mapRectNow(-1950, -3300, 8200, 1800); //roof
+        spawn.mapRectNow(-250, -200, 1000, 300); // shelf
+        spawn.mapRectNow(-250, -1700, 1000, 1250); // shelf roof
+        spawn.mapRectNow(705, -210, 25, 50);
+        spawn.mapRectNow(725, -220, 25, 50);
+        spawn.bodyRect(750, -125, 125, 125);
+        spawn.bodyRect(875, -50, 50, 50);
+
+        spawn.mapRectNow(5400, -1700, 400, 1150); //right wall
+        spawn.mapRectNow(5400, -300, 400, 400); //right wall
+        spawn.mapRectNow(5700, -3300, 1800, 5100); //right wall
+        // spawn.mapRectNow(5403, -650, 400, 450); //blocking exit
+        let s = { //mech statue
+            x: 0,
+            y: -305,
+            angle: 0,
+            scale: 1,
+            h: { //hip
+                x: 12,
+                y: 24
+            },
+            k: { //knee
+                x: -30.96, //-17.38
+                y: 58.34, //70.49
+            },
+            f: { //foot
+                x: 0,
+                y: 91 //112
+            },
+            fillColor: "hsl(0,0%,100%)", //white
+            fillColorDark: "hsl(0,0%,75%)", //25% from white
+        }
+        function statueLeg(shift, color) {
+            ctx.save();
+            ctx.translate(shift, shift);
+            //front leg
+            let stroke = color;
+            ctx.beginPath();
+            ctx.moveTo((s.h.x + shift) * s.scale, (s.h.y + shift) * s.scale);
+            ctx.lineTo((s.k.x + 2 * shift) * s.scale, (s.k.y + shift) * s.scale);
+            ctx.lineTo((s.f.x + shift) * s.scale, (s.f.y + shift) * s.scale);
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 7 * s.scale;
+            ctx.stroke();
+            //toe lines
+            ctx.beginPath();
+            ctx.moveTo((s.f.x + shift) * s.scale, (s.f.y + shift) * s.scale);
+            ctx.lineTo((s.f.x - 15 + shift) * s.scale, (s.f.y + 5 + shift) * s.scale);
+            ctx.moveTo((s.f.x + shift) * s.scale, (s.f.y + shift) * s.scale);
+            ctx.lineTo((s.f.x + 15 + shift) * s.scale, (s.f.y + 5 + shift) * s.scale);
+            ctx.lineWidth = 4 * s.scale;
+            ctx.stroke();
+            //hip joint
+            ctx.beginPath();
+            ctx.arc((s.h.x + shift) * s.scale, (s.h.y + shift) * s.scale, 11 * s.scale, 0, 2 * Math.PI);
+            //knee joint
+            ctx.moveTo((s.k.x + 7 + 2 * shift) * s.scale, (s.k.y + shift) * s.scale);
+            ctx.arc((s.k.x + 2 * shift) * s.scale, (s.k.y + shift) * s.scale, 7 * s.scale, 0, 2 * Math.PI);
+            //foot joint
+            ctx.moveTo((s.f.x + 6 + shift) * s.scale, (s.f.y + shift) * s.scale);
+            ctx.arc((s.f.x + shift) * s.scale, (s.f.y + shift) * s.scale, 6 * s.scale, 0, 2 * Math.PI);
+            ctx.fillStyle = s.fillColor;
+            ctx.fill();
+            ctx.lineWidth = 2 * s.scale;
+            ctx.stroke();
+            ctx.restore();
+        }
+        level.custom = () => {
+            level.enter.draw();
+
+            ctx.save();
+            ctx.translate(s.x, s.y);
+            statueLeg(-3, "#4a4a4a");
+            statueLeg(0, "#333");
+            ctx.rotate(s.angle);
+            ctx.beginPath();
+            ctx.arc(0, 0, 30 * s.scale, 0, 2 * Math.PI);
+            let grd = ctx.createLinearGradient(-30 * s.scale, 0, 30 * s.scale, 0);
+            grd.addColorStop(0, s.fillColorDark);
+            grd.addColorStop(1, s.fillColor);
+            ctx.fillStyle = grd;
+            ctx.fill();
+            ctx.arc(15 * s.scale, 0, 4 * s.scale, 0, 2 * Math.PI);
+            ctx.strokeStyle = "#333";
+            ctx.lineWidth = 2 * s.scale;
+            ctx.stroke();
+            ctx.restore();
+        }
+        level.customTopLayer = () => { }
+    },
     custom() { },
     customTopLayer() { },
 };
-
-function buildArena() {
-    level.enter.x = -50;
-    level.enter.y = -230;
-    spawn.mapRectNow(level.enter.x, level.enter.y + 20, 100, 20);
-    spawn.mapRectNow(5500, -330 + 20, 100, 20); //spawn this because the real exit is in the wrong spot
-    spawn.mapRectNow(-1950, 0, 8200, 1800); //ground
-    spawn.mapRectNow(-1950, -1500, 1800, 1900); //left wall
-    spawn.mapRectNow(-1950, -3300, 8200, 1800); //roof
-    spawn.mapRectNow(-250, -200, 1000, 300); // shelf
-    spawn.mapRectNow(-250, -1700, 1000, 1250); // shelf roof
-    spawn.mapRectNow(705, -210, 25, 50);
-    spawn.mapRectNow(725, -220, 25, 50);
-    spawn.bodyRect(750, -125, 125, 125);
-    spawn.bodyRect(875, -50, 50, 50);
-
-    spawn.mapRectNow(5400, -1700, 400, 1150); //right wall
-    spawn.mapRectNow(5400, -300, 400, 400); //right wall
-    spawn.mapRectNow(5700, -3300, 1800, 5100); //right wall
-    // spawn.mapRectNow(5403, -650, 400, 450); //blocking exit
-}
-
 function drawArena() {
-    level.enter.draw();
     ctx.beginPath();
     for (let i = 0; i < map.length; i++) {
         const vertices = map[i].vertices;
