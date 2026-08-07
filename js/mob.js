@@ -1462,7 +1462,7 @@ function findNearestEnemy(me) {
     let best = null, bestDist = Infinity;
     for (let i = 0; i < mob.length; i++) {
         const cand = mob[i];
-        if (cand === me || !cand.alive || cand.team === me.team || cand.collisionFilter.category === cat.mobShield) continue;
+        if (cand === me || !cand.alive || cand.team === me.team || cand.collisionFilter.category === cat.mobShield || cand.collisionFilter.category === cat.mobBullet || cand.isInvulnerable) continue;
         const dx = cand.position.x - me.position.x, dy = cand.position.y - me.position.y;
         const d = dx * dx + dy * dy;
         if (d < bestDist) { bestDist = d; best = cand; }
