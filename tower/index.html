@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="Browser-based autobattler video game with the matter.js physics engine.">
+<meta property="og:description" content="Browser-based autobattler video game with the matter.js physics engine.">
+<meta property="og:title" content="n-gon">
+<meta name="twitter:title" content="n-gon">
+<meta name="twitter:description" content="Browser-based autobattler video game with the matter.js physics engine.">
+<link rel="stylesheet" href="styles.css">
+<link rel='shortcut icon' href='favicon.ico' type='image/x-icon' />
+<title>auto-gon</title>
+</head>
+<body>
+  <div id="app">
+    <div id="sidebar">
+    <div id="sidebar-header">
+    <h1>auto-gon</h1>
+    <button class="sidebar-toggle" onclick="
+        noMarkers = !noMarkers;
+    ">Marker</button>
+    <button class="sidebar-toggle" onclick="
+        document.getElementById('sidebar').style.display = 'none';
+        resizeCanvas();
+        document.getElementById('show-btn').style.display = 'block';
+    ">Hide</button>
+    </div>
+      <div id="settings-panel">
+        <div id="settings-header" onclick="
+            document.getElementById('fps-select').classList.toggle('collapsed');
+        ">
+          <span>Settings</span>
+        </div>
+        <div id="fps-select"></div>
+      </div>
+      <div id="team-row">
+        <span id="team-indicator">Your team: <strong>Red</strong></span>
+      </div>
+      <div id="currency-row">
+        <span id="currency-indicator">Currency: <strong id="currency-amount">0</strong></span>
+        <button id="heal-btn" class="sidebar-toggle" style="display:none;"></button>
+      </div>
+      <div id="selected-mob-row">Placing: <span id="selected-mob-label">—</span></div>
+      <div id="roster"></div>
+      <div id="controls">
+        <button id="reset-btn">Reset</button>
+        <button id="fight-btn">Fight</button>
+      </div>
+    </div>
+    <div id="show-btn">
+    <button class="sidebar-toggle" onclick="
+        document.getElementById('sidebar').style.display = 'flex';
+        resizeCanvas();
+        document.getElementById('show-btn').style.display = 'none';
+    ">Show</button>
+    </div>    
+    <div id="canvas-wrap">
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+<script src='lib/matter.min.js'></script>
+<script src='js/engine.js'></script>
+<script src='js/level.js'></script>
+<script src='js/mob.js'></script>
+<script src='js/spawn.js'></script>
+<script src='js/misc.js'></script>
+<script src='js/run.js'></script>
+</body>
+</html>
