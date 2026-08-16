@@ -5,6 +5,8 @@ https://landgreen.github.io/n-gon/
 
 https://Whyisthisnotavalable.github.io/n-gon-autobattler/
 <br>
+https://Whyisthisnotavalable.github.io/n-gon-autobattler/tower/
+<br>
 thanks to landgreen for making all the mob code and other stuff
 
 ## picture
@@ -14,3 +16,4 @@ thanks to landgreen for making all the mob code and other stuff
 wasd for camera movement
 <br>
 q and e for zoom
+<br>

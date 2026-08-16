@@ -352,9 +352,14 @@ function drawHUD() {
     ctx.textAlign = "right";
     ctx.fillText(`Blue: ${counts.B}`, canvas.width - 16, 14);
 
-    ctx.fillStyle = "#333";
-    ctx.textAlign = "center";
     const bossTag = enemyGen.isBossLevel(game.level) ? " · Boss" : "";
+    let lw = ctx.measureText(`Level ${game.level}${bossTag}`).width + 10;
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.fillRect(canvas.width / 2 - lw / 2, 10.5, lw, 20);
+    ctx.strokeStyle = "#ccc";
+    ctx.strokeRect(canvas.width / 2 - lw / 2, 10.5, lw, 20);
+    ctx.fillStyle = "rgba(120,120,120,0.9)";
+    ctx.textAlign = "center";
     ctx.fillText(`Level ${game.level}${bossTag}`, canvas.width / 2, 14);
     ctx.textAlign = "left";
 
@@ -416,9 +421,16 @@ function drawHUD() {
         ctx.fillText("Click New Run to try again", canvas.width / 2, canvas.height / 2 + 30);
         ctx.textAlign = "left";
     } else if (game.state === "placing") {
-        ctx.fillStyle = "rgba(160,160,160,0.7)";
+        let text = "Spend your starting currency to place a team, then click Fight";
+        let width = ctx.measureText(text).width + 10;
+        ctx.fillStyle = "rgba(255,255,255,0.92)";
+        ctx.fillRect(canvas.width / 2 - width / 2, canvas.height - 30, width, 20);
+        ctx.strokeStyle = "#ccc";
+        ctx.strokeRect(canvas.width / 2 - width / 2, canvas.height - 30, width, 20);
+
+        ctx.fillStyle = "rgba(160,160,160,0.9)";
         ctx.textAlign = "center";
-        ctx.fillText("Spend your starting currency to place a team, then click Fight", canvas.width / 2, canvas.height - 26);
+        ctx.fillText(text, canvas.width / 2, canvas.height - 26);
         ctx.textAlign = "left";
     }
 }

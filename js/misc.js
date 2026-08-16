@@ -215,9 +215,16 @@ function drawHUD() {
         ctx.fillText("Click Reset to battle again", canvas.width / 2, canvas.height / 2 + 8);
         ctx.textAlign = "left";
     } else if (game.state === "placing") {
-        ctx.fillStyle = "rgba(160,160,160,0.7)";
+        let text = "Click the arena to place a mob";
+        let width = ctx.measureText(text).width + 10;
+        ctx.fillStyle = "rgba(255,255,255,0.92)";
+        ctx.fillRect(canvas.width / 2 - width / 2, canvas.height - 30, width, 20);
+        ctx.strokeStyle = "#ccc";
+        ctx.strokeRect(canvas.width / 2 - width / 2, canvas.height - 30, width, 20);
+
+        ctx.fillStyle = "rgba(120,120,120,0.7)";
         ctx.textAlign = "center";
-        ctx.fillText("Click the arena to place a mob", canvas.width / 2, canvas.height - 26);
+        ctx.fillText(text, canvas.width / 2, canvas.height - 26);
         ctx.textAlign = "left";
     }
 }
