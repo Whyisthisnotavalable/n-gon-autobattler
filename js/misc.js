@@ -246,36 +246,37 @@ function drawTeamMarkers() {
 function mainLoop(now) {
     requestAnimationFrame(mainLoop);
     ctx.restore();
-    ctx.save();
-
-    const elapsed = now - simulation.then;
-    if (elapsed < simulation.fpsInterval) return;
-    simulation.then = now - (elapsed % simulation.fpsInterval);
-    simulation.gravity();
-    enforceDefaultTiers();
-    enforceCollisionMasks();
-    Engine.update(engine, simulation.delta);
-    simulation.wipe();
-    updateCamera();
-    applyCameraTransform();
-    level.custom();
-    drawArena();
-    updateMouseTransform();
-    simulation.drawCircle();
-    simulation.runEphemera();
-    mobs.draw();
-    simulation.draw.body();
-    level.customTopLayer();
-    if (game.state === "battle") {
-        mouseConstraint.collisionFilter.mask = 0xFFFFFFFF;
-        simulation.cycle++;
-        runMobAI();
-        game.checkWin();
-    } else {
-        mouseConstraint.collisionFilter.mask = 0;
+    if(!simulation.paused) {
+        ctx.save();
+        const elapsed = now - simulation.then;
+        if (elapsed < simulation.fpsInterval) return;
+        simulation.then = now - (elapsed % simulation.fpsInterval);
+        simulation.gravity();
+        enforceDefaultTiers();
+        enforceCollisionMasks();
+        Engine.update(engine, simulation.delta);
+        simulation.wipe();
+        updateCamera();
+        applyCameraTransform();
+        level.custom();
+        drawArena();
+        updateMouseTransform();
+        simulation.drawCircle();
+        simulation.runEphemera();
+        mobs.draw();
+        simulation.draw.body();
+        level.customTopLayer();
+        if (game.state === "battle") {
+            mouseConstraint.collisionFilter.mask = 0xFFFFFFFF;
+            simulation.cycle++;
+            runMobAI();
+            game.checkWin();
+        } else {
+            mouseConstraint.collisionFilter.mask = 0;
+        }
+        drawTeamMarkers();
+        drawHUD();
     }
-    drawTeamMarkers();
-    drawHUD();
 }
 
 requestAnimationFrame(mainLoop);
@@ -299,6 +300,17 @@ window.onload = function () {
     selectMob("slasher", document.querySelector('.mob-btn[data-name="slasher"]'));
     selectTeam("A");
     updateCameraFit();
+    window.addEventListener("keydown", (e) => {
+        if (e.target.matches("input, textarea, select")) return;
+        if (e.key.toLowerCase() === "p") {
+            simulation.paused = !simulation.paused;
+            if(simulation.paused) {
+                document.getElementById("paused").style.display = "block";
+            } else {
+                document.getElementById("paused").style.display = "none";
+            }
+        }
+    });
     requestAnimationFrame(mainLoop);
 };
 
