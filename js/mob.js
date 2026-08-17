@@ -227,7 +227,7 @@ const mobs = {
                 const y = this.position.y - w * 0.7;
                 ctx.fillStyle = "rgba(100, 100, 100, 0.3)";
                 ctx.fillRect(x, y, w, h);
-                ctx.fillStyle = "rgba(255,0,0,0.7)";
+                ctx.fillStyle = this.team == "A" ? "rgba(255,0,0,0.7)" : "rgba(0,0,255,0.7)";
                 ctx.fillRect(x, y, w * this.health, h);
             },
             healthBar2() {
@@ -245,13 +245,13 @@ const mobs = {
                 ctx.beginPath()
                 ctx.moveTo(x1, y);
                 ctx.lineTo(x1 + 2 * this.radius * this.health, y)
-                ctx.strokeStyle = "rgba(255, 0, 100, 0.8)";
+                ctx.fillStyle = this.team == "A" ? "rgba(255,0,0,0.7)" : "rgba(0,0,255,0.7)";
                 ctx.stroke()
             },
             healthBar3() {
                 const arc = 3 / 2 * Math.PI
                 ctx.lineWidth = this.radius * 0.25;
-                ctx.strokeStyle = `rgb(${Math.floor(150 + 50 * Math.random())},0,${Math.floor(150 + 50 * Math.random())})`;
+                ctx.strokeStyle = this.team == "A" ? "rgb(255,0,0)" : "rgb(0,0,255)";
 
                 ctx.beginPath()
                 ctx.arc(this.position.x, this.position.y, this.radius * 1.5, arc - this.health, arc + this.health,);
@@ -265,10 +265,10 @@ const mobs = {
                 ctx.fillRect(x, y, this.radius * 2, w);
                 let health
                 if (this.health > 0.5) {
-                    ctx.fillStyle = "#000";
+                    ctx.fillStyle = this.team == "A" ? "rgba(255,0,0,0.5)" : "rgba(0,0,255,0.5)";
                     health = 2 * (this.health - 0.5)
                 } else {
-                    ctx.fillStyle = "#fff";
+                    ctx.fillStyle = this.team == "A" ? "rgb(255,0,0)" : "rgb(0,0,255)";
                     health = 2 * this.health
                 }
                 for (let j = 0; j < 4; j++) {

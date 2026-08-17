@@ -436,7 +436,7 @@ function drawHUD() {
 }
 
 let canvas, ctx, mouse, mouseConstraint;
-let noMarkers = false;
+let noMarkers = true;
 function drawTeamMarkers() {
     if(noMarkers) return;
     for (let i = 0; i < mob.length; i++) {
