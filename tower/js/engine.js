@@ -16,7 +16,6 @@ let map = [];
 let cons = []; 
 let consBB = []; 
 let bullet = []; 
-let powerUp = []; 
 
 const cat = {
     player: 0x1,
@@ -85,6 +84,7 @@ const tech = {
     isSporeWorm: false,
     isSuperDeterminism: false,
     isVerlet: false,
+    largerHeals: 1,
     mineralDamage: 1,
     mineralDamageReduction: 0,
     mineralLastCheck: 0,
@@ -93,7 +93,33 @@ const tech = {
     radioactiveDamage: 1,
     sporesOnDeath: 0,
     wimpCount: 0,
+    mergedList: [],
+    duplicationChance() {},
     wire: { segments: [] },
+    tech: [
+        {
+            name: "damage",
+            description: `<strong>+10%</strong> team <strong class='color-d'>damage</strong> dealt`,
+            maxCount: 5,
+            count: 0,
+            frequency: 1,
+            frequencyDefault: 1,
+            allowed() { return true },
+            requires: "",
+            effect() { 
+                m.damageDone *= 1.1 
+            },
+            remove() { 
+                m.damageDone /= 1.1 
+            },
+        },
+    ],
+    giveTech(index) {
+        const entry = tech.tech[index];
+        if (!entry || entry.count >= entry.maxCount) return;
+        broadcastTechEffect(entry);
+        entry.count++;
+    },
 };
 
 const localSettings = {
@@ -105,23 +131,28 @@ const input = { down: false, up: false, left: false, right: false, fire: false }
 const mouseMove = { reset() { } };
 
 const b = {
-    inventory: [], guns: {}, 
+    inventory: [], 
+    guns: [
+        // {
+        //     name: "nail gun", // 0
+        //     // description: `use compressed air to shoot a stream of <strong>nails</strong><br><em>fire rate</em> <strong>increases</strong> the longer you fire<br><strong>60</strong> nails per ${powerUps.orb.ammo()}`,
+        //     descriptionFunction() {
+        //         return `use compressed air to rapidly drive <strong>nails</strong><br><em>fire rate</em> <strong>increases</strong> the longer you fire<br><strong>${0.5 * this.ammoPack.toFixed(0)}</strong> nails per ${powerUps.orb.ammo()}`
+        //         // <em style ="float: right;">(${(11 / 60 * b.fireCDscale * 1000).toFixed(0)} to ${(1 * b.fireCDscale / 60 * 1000).toFixed(0)} millisecond cooldown)</em>`
+        //     },
+        //     ammo: 0,
+        //     ammoPack: 27,
+        //     defaultAmmoPack: 27,
+        //     recordedAmmo: 0,
+        //     have: false,
+        //     do() { },
+        //     fire() { },
+        // },
+    ], 
     orbitBot() { }, worm() { }, flea() { }, spore() { }, explosion() { },
     targetedNail() { }, randomBot() { }, iceIX() { }, targetedBlock() { },
 };
 
-const powerUps = {
-    randomize() { },
-    spawn() { },
-    spawnRandomPowerUp() { },
-    spawnBossPowerUp() { },
-    ejectTech() { },
-    ejectGraphic() { },
-    chooseRandomPowerUp() { },
-    directSpawn() { },
-    setPowerUpMode() { },
-    do() { },
-};
 const engine = Engine.create();
 engine.world.gravity.scale = 0; 
 engine.constraintIterations = 1;
@@ -245,6 +276,7 @@ const simulation = {
     fpsInterval: 1000 / 60,
     then: performance.now(),
     dmgScale: 0.025,
+    healScale: 1,
     invFrames: 0,
     minCdamage: 0.05,
     maxCdamage: 1,
@@ -258,6 +290,7 @@ const simulation = {
     splashReturn() { },
     inGameConsole() { },       
     updateGunHUD() { },
+    updateTechHUD() { },
     drawList: [], 
     drawCircle() {
         let i = simulation.drawList.length;
@@ -289,6 +322,9 @@ const simulation = {
     gravity() {
         for (let i = 0, len = body.length; i < len; i++) {
             body[i].force.y += body[i].mass * simulation.g;
+        }
+        for (let i = 0, len = powerUp.length; i < len; i++) {
+            powerUp[i].force.y += powerUp[i].mass * simulation.g;
         }
     },
 

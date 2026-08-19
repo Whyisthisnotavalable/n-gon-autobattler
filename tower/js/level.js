@@ -4,6 +4,7 @@ const level = {
     isMobDeathHeal: false,
     isMobRespawn: false,
     isMobShields: false,
+    isNextLevelPowerUps: false,
     exit: { x: 0, y: 0 },
     levels: [],
     enter: {

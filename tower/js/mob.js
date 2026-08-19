@@ -245,7 +245,7 @@ const mobs = {
                 ctx.beginPath()
                 ctx.moveTo(x1, y);
                 ctx.lineTo(x1 + 2 * this.radius * this.health, y)
-                ctx.fillStyle = this.team == "A" ? "rgba(255,0,0,0.7)" : "rgba(0,0,255,0.7)";
+                ctx.strokeStyle = this.team == "A" ? "rgba(255,0,0,0.7)" : "rgba(0,0,255,0.7)";
                 ctx.stroke()
             },
             healthBar3() {
@@ -835,7 +835,8 @@ const mobs = {
                 }
             },
             damageScale() {
-                return ((spawn.mobDmgDoneByTier[this.tier] && level.levelsCleared < 14) ? spawn.mobDmgDoneByTier[this.tier] : spawn.dmgToPlayerByLevelsCleared())
+                const base = ((spawn.mobDmgDoneByTier[this.tier] && level.levelsCleared < 14) ? spawn.mobDmgDoneByTier[this.tier] : spawn.dmgToPlayerByLevelsCleared())
+                return base * (this._damageDone || 1);
             },
             damage(dmg, isBypassShield = false) { 
                 if ((!this.isShielded || isBypassShield) && this.alive) {
@@ -1370,16 +1371,16 @@ function updateAllHistories() {
 }
 
 const m = {
-    _target: NO_TARGET,
-    get pos() { return this._target.position },
-    get angle() { return this._target.angle },
-    get health() { return this._target.health },
-    get displayHealth() { return this._target.health },
+    target: NO_TARGET,
+    get pos() { return this.target.position },
+    get angle() { return this.target.angle },
+    get health() { return this.target.health },
+    get displayHealth() { return this.target.health },
     get maxHealth() { return 1 },
-    get alive() { return this._target.alive },
-    get isBadTarget() { return !!this._target.isBadTarget },
+    get alive() { return this.target.alive },
+    get isBadTarget() { return !!this.target.isBadTarget },
     get history() {
-        const t = this._target;
+        const t = this.target;
         if (!t._huntMemory) t._huntMemory = initHistory(t.position);
         if (!t._huntMemoryProxy) t._huntMemoryProxy = makeHistoryProxy(t._huntMemory);
         return t._huntMemoryProxy;
@@ -1388,28 +1389,30 @@ const m = {
     get isTimeDilated() { return false },
     get onGround() { return true },
     get crouch() { return false },
-    get immuneCycle() { return this._target.immuneUntilCycle || 0 },
-    set immuneCycle(v) { this._target.immuneUntilCycle = v },
+    get immuneCycle() { return this.target.immuneUntilCycle || 0 },
+    set immuneCycle(v) { this.target.immuneUntilCycle = v },
     get collisionImmuneCycles() { return 20 },
     get cycle() { return simulation.cycle },
-    get energy() { return this._target._energy || 1 },
-    set energy(v) { this._target._energy = v },
+    get energy() { return this.target._energy || 1 },
+    set energy(v) { this.target._energy = v },
     get maxEnergy() { return 1 },
-    get damageDone() { return this._target._damageDone || 1 },
-    set damageDone(v) { this._target._damageDone = v },
-    get lastKillCycle() { return this._target._lastKillCycle || 0 },
-    set lastKillCycle(v) { this._target._lastKillCycle = v },
+    get damageDone() { return this.target._damageDone || 1 },
+    set damageDone(v) { this.target._damageDone = v },
+    get lastKillCycle() { return this.target._lastKillCycle || 0 },
+    set lastKillCycle(v) { this.target._lastKillCycle = v },
     get walk_cycle() { return 0 }, set walk_cycle(v) { },
     get flipLegs() { return 1 },
-    get Vx() { return this._target.velocity ? this._target.velocity.x : 0 },
+    get Vx() { return this.target.velocity ? this.target.velocity.x : 0 },
     get knee() { return { x: 0, y: 0 } },
     get foot() { return { x: 0, y: 0 } },
+    fieldUpgrades: [],
+    addHealth() { },
     calcLeg() { },
     lookingAtMob() { return false },
     setMaxEnergy() { },
     setMaxHealth() { },
-    takeDamage(dmg) { this._target.damage(dmg) },
-    death() { this._target.death() },
+    takeDamage(dmg) { this.target.damage(dmg) },
+    death() { this.target.death() },
 };
 
 let currentActingTeam = null;
@@ -1474,7 +1477,17 @@ function pointGlobalsAt(target) {
     player = target;
     playerBody = target;
     playerHead = target;
-    m._target = target;
+    m.target = target;
+}
+
+function broadcastTechEffect(entry, isRemove = false) {
+    const savedTarget = m.target;
+    const teamA = uniqueAliveTeamMobs('A');
+    for (let i = 0; i < teamA.length; i++) {
+        pointGlobalsAt(teamA[i]);
+        if (isRemove) entry.remove(); else entry.effect();
+    }
+    m.target = savedTarget;
 }
 
 function resolveTargetFor(me) {

@@ -245,7 +245,7 @@ const mobs = {
                 ctx.beginPath()
                 ctx.moveTo(x1, y);
                 ctx.lineTo(x1 + 2 * this.radius * this.health, y)
-                ctx.fillStyle = this.team == "A" ? "rgba(255,0,0,0.7)" : "rgba(0,0,255,0.7)";
+                ctx.strokeStyle = this.team == "A" ? "rgba(255,0,0,0.7)" : "rgba(0,0,255,0.7)";
                 ctx.stroke()
             },
             healthBar3() {

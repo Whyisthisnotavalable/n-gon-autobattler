@@ -4,7 +4,7 @@ const enemyGen = {
     tierCost: [1, 1, 3, 8, 20],
     tierUnlockLevel: [1, 1, 3, 6, 10],
     tierExpiresAfterLevel: [1, Infinity, Infinity, Infinity, Infinity],
-    bossLevelInterval: 9,
+    bossLevelInterval: 10,
     bossTierUnlockLevel: [null, 4, 8, 12, 16],
     maxEnemiesForLevel(level) {
         return Math.min(20, 5 + Math.floor(level * 0.5));
@@ -141,9 +141,7 @@ const shop = {
         return true;
     },
 };
-
-const ENEMY_SPAWN_BUFFER = 70;
-
+const enemySpawnBuffer = 70;
 function getArenaSampleBounds() {
     let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
     for (let i = 0; i < map.length; i++) {
@@ -183,7 +181,7 @@ function findSpawnPoint(bounds, xRange, tries = 40) {
     for (let i = 0; i < tries; i++) {
         const x = xRange[0] + Math.random() * (xRange[1] - xRange[0]);
         const y = bounds.top + Math.random() * (bounds.bottom - bounds.top);
-        if (isPointClear(x, y) && isFarEnoughFromMobs(x, y, ENEMY_SPAWN_BUFFER)) {
+        if (isPointClear(x, y) && isFarEnoughFromMobs(x, y, enemySpawnBuffer)) {
             return { x, y };
         }
     }

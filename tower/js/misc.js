@@ -208,6 +208,14 @@ function setupControls() {
         refreshShopUI();
     });
 
+    canvas.addEventListener("mousemove", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const px = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const py = (e.clientY - rect.top) * (canvas.height / rect.height);
+        mouseArenaPos = screenToArena(px, py);
+    });
+    canvas.addEventListener("mouseleave", () => { mouseArenaPos = null; });
+
     window.addEventListener("resize", resizeCanvas);
 }
 function syncControls() {
@@ -354,6 +362,7 @@ function drawHUD() {
 
     const bossTag = enemyGen.isBossLevel(game.level) ? " · Boss" : "";
     let lw = ctx.measureText(`Level ${game.level}${bossTag}`).width + 10;
+    ctx.lineWidth = 2;
     ctx.fillStyle = "rgba(255,255,255,0.92)";
     ctx.fillRect(canvas.width / 2 - lw / 2, 10.5, lw, 20);
     ctx.strokeStyle = "#ccc";
@@ -437,6 +446,24 @@ function drawHUD() {
 
 let canvas, ctx, mouse, mouseConstraint;
 let noMarkers = true;
+let mouseArenaPos = null;
+const pickUpRadius = 55;
+function checkHoverPowerUpPickup() {
+    if (!mouseArenaPos || game.state !== "battle") return;
+    const r2 = pickUpRadius * pickUpRadius;
+    for (let i = powerUp.length - 1; i >= 0; i--) {
+        const p = powerUp[i];
+        const dx = p.position.x - mouseArenaPos.x, dy = p.position.y - mouseArenaPos.y;
+        if (dx * dx + dy * dy > r2) continue;
+        powerUp[i].effect();
+        game.currency += Math.floor(powerUp[i].size * 3);
+        simulation.drawList.push({ x: p.position.x, y: p.position.y, radius: 40, color: "rgba(255, 136, 0, 0.9)", time: 14 });
+        Composite.remove(engine.world, p);
+        powerUp.splice(i, 1);
+        refreshShopUI();
+    }
+}
+
 function drawTeamMarkers() {
     if(noMarkers) return;
     for (let i = 0; i < mob.length; i++) {
@@ -448,6 +475,14 @@ function drawTeamMarkers() {
         ctx.lineWidth = 3;
         ctx.stroke();
     }
+}
+function drawHoverRadius() {
+    if (!mouseArenaPos || game.state !== "battle" || !powerUp.length) return;
+    ctx.beginPath();
+    ctx.arc(mouseArenaPos.x, mouseArenaPos.y, pickUpRadius, 0, 2 * Math.PI);
+    ctx.strokeStyle = "rgba(255,196,0,0.5)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
 }
 function mainLoop(now) {
     requestAnimationFrame(mainLoop);
@@ -465,6 +500,7 @@ function mainLoop(now) {
     updateCamera();
     applyCameraTransform();
     level.custom();
+    powerUps.do();
     drawArena();
     // updateMouseTransform();
     simulation.drawCircle();
@@ -472,10 +508,12 @@ function mainLoop(now) {
     mobs.draw();
     simulation.draw.body();
     level.customTopLayer();
+    drawHoverRadius();
     if (game.state === "battle") {
         // mouseConstraint.collisionFilter.mask = 0xFFFFFFFF;
         simulation.cycle++;
         runMobAI();
+        checkHoverPowerUpPickup();
         game.checkWin();
     } else {
         // mouseConstraint.collisionFilter.mask = 0;
@@ -504,6 +542,7 @@ window.onload = function () {
     setupControls();
     selectMob("slasher", document.querySelector('.mob-btn[data-name="slasher"]'));
     updateCameraFit();
+    powerUps.setPowerUpMode();
     game.currency = shop.startingCurrency;
     game.unlockedTiers = [0, 1];
     game.unlockedBossTiers = [];
