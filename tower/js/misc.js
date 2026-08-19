@@ -486,7 +486,6 @@ function drawHoverRadius() {
 }
 function mainLoop(now) {
     requestAnimationFrame(mainLoop);
-    ctx.restore();
     ctx.save();
 
     const elapsed = now - simulation.then;
@@ -520,6 +519,7 @@ function mainLoop(now) {
     }
     drawTeamMarkers();
     drawHUD();
+    ctx.save();
 }
 
 requestAnimationFrame(mainLoop);
