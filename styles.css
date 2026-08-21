@@ -179,4 +179,4 @@
     text-align: center;
   }
   #canvas-wrap { flex: 1; position: relative; background: #fbfbfc; }
-  #canvas { display: block; width: 100%; height: 100%; cursor: crosshair; background-color: #ddd; }
+  #canvas { display: block; width: 100%; height: 100%; cursor: none; background-color: #ddd; }

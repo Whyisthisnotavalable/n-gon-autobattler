@@ -245,9 +245,9 @@ function drawTeamMarkers() {
 }
 function mainLoop(now) {
     requestAnimationFrame(mainLoop);
-    ctx.restore();
     if(!simulation.paused) {
         ctx.save();
+        ctx.lineCap = "round";
         const elapsed = now - simulation.then;
         if (elapsed < simulation.fpsInterval) return;
         simulation.then = now - (elapsed % simulation.fpsInterval);
@@ -276,6 +276,8 @@ function mainLoop(now) {
         }
         drawTeamMarkers();
         drawHUD();
+        simulation.runEphemera();
+        ctx.restore();
     }
 }
 

@@ -212,9 +212,10 @@ function setupControls() {
         const rect = canvas.getBoundingClientRect();
         const px = (e.clientX - rect.left) * (canvas.width / rect.width);
         const py = (e.clientY - rect.top) * (canvas.height / rect.height);
-        mouseArenaPos = screenToArena(px, py);
+        simulation.mouse.x = px;
+        simulation.mouse.y = py;
     });
-    canvas.addEventListener("mouseleave", () => { mouseArenaPos = null; });
+    canvas.addEventListener("mouseleave", () => { simulation.mouseInGame = null; });
 
     window.addEventListener("resize", resizeCanvas);
 }
@@ -446,24 +447,22 @@ function drawHUD() {
 
 let canvas, ctx, mouse, mouseConstraint;
 let noMarkers = true;
-let mouseArenaPos = null;
 const pickUpRadius = 55;
 function checkHoverPowerUpPickup() {
-    if (!mouseArenaPos || game.state !== "battle") return;
+    if (!simulation.mouseInGame || game.state !== "battle" || simulation.isChoosing == true) return;
     const r2 = pickUpRadius * pickUpRadius;
     for (let i = powerUp.length - 1; i >= 0; i--) {
         const p = powerUp[i];
-        const dx = p.position.x - mouseArenaPos.x, dy = p.position.y - mouseArenaPos.y;
+        const dx = p.position.x - simulation.mouseInGame.x, dy = p.position.y - simulation.mouseInGame.y;
         if (dx * dx + dy * dy > r2) continue;
         powerUp[i].effect();
         game.currency += Math.floor(powerUp[i].size * 3);
-        simulation.drawList.push({ x: p.position.x, y: p.position.y, radius: 40, color: "rgba(255, 136, 0, 0.9)", time: 14 });
+        simulation.drawList.push({ x: p.position.x, y: p.position.y, radius: 40, color: "rgb(55, 255, 0)", time: 14 });
         Composite.remove(engine.world, p);
         powerUp.splice(i, 1);
         refreshShopUI();
     }
 }
-
 function drawTeamMarkers() {
     if(noMarkers) return;
     for (let i = 0; i < mob.length; i++) {
@@ -476,19 +475,11 @@ function drawTeamMarkers() {
         ctx.stroke();
     }
 }
-function drawHoverRadius() {
-    if (!mouseArenaPos || game.state !== "battle" || !powerUp.length) return;
-    ctx.beginPath();
-    ctx.arc(mouseArenaPos.x, mouseArenaPos.y, pickUpRadius, 0, 2 * Math.PI);
-    ctx.strokeStyle = "rgba(255,196,0,0.5)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-}
 function mainLoop(now) {
     requestAnimationFrame(mainLoop);
     if(!ctx) return;
     ctx.save();
-
+    ctx.lineCap = "round";
     const elapsed = now - simulation.then;
     if (elapsed < simulation.fpsInterval) return;
     simulation.then = now - (elapsed % simulation.fpsInterval);
@@ -504,11 +495,9 @@ function mainLoop(now) {
     drawArena();
     // updateMouseTransform();
     simulation.drawCircle();
-    simulation.runEphemera();
     mobs.draw();
     simulation.draw.body();
     level.customTopLayer();
-    drawHoverRadius();
     if (game.state === "battle") {
         // mouseConstraint.collisionFilter.mask = 0xFFFFFFFF;
         simulation.cycle++;
@@ -520,7 +509,10 @@ function mainLoop(now) {
     }
     drawTeamMarkers();
     drawHUD();
+    simulation.runEphemera();
     ctx.restore();
+    simulation.drawCursor();
+    simulation.mouseInGame = screenToArena(simulation.mouse.x, simulation.mouse.y);
 }
 
 requestAnimationFrame(mainLoop);

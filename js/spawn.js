@@ -12487,7 +12487,7 @@ const spawn = {
                 this.cycle = 0
                 ctx.beginPath();
                 for (let i = 0; i < mob.length; i++) {
-                    if (!mob[i].isShielded && !mob[i].shield && mob[i].isDropPowerUp && mob[i].alive && !mob[i].isBoss) {
+                    if (!mob[i].isShielded && !mob[i].shield && mob[i].isDropPowerUp && mob[i].alive && !mob[i].isBoss && mob[i].team === this.team) {
                         ctx.moveTo(this.position.x, this.position.y)
                         ctx.lineTo(mob[i].position.x, mob[i].position.y)
                         spawn.shield(mob[i], mob[i].position.x, mob[i].position.y, 1, true);
@@ -12636,7 +12636,7 @@ const spawn = {
                 this.cycle = 0
                 ctx.beginPath();
                 for (let i = 0; i < mob.length; i++) {
-                    if (!mob[i].isShielded && !mob[i].shield && mob[i].isDropPowerUp && mob[i].alive && !mob[i].isBoss) {
+                    if (!mob[i].isShielded && !mob[i].shield && mob[i].isDropPowerUp && mob[i].alive && !mob[i].isBoss && mob[i].team === this.team) {
                         ctx.moveTo(this.position.x, this.position.y)
                         ctx.lineTo(mob[i].position.x, mob[i].position.y)
                         spawn.shield(mob[i], mob[i].position.x, mob[i].position.y, 1, true);
@@ -13549,6 +13549,7 @@ const spawn = {
             Matter.Body.setDensity(me, 0.00001) 
             me.stroke = "transparent";
             me.shield = true;
+            me.team = target.team;
             me.damageReduction = 0.073
             me.torqueMag = (0.00000005 + 0.00000001 * (Math.random() - 0.5)) * me.inertia
             me.isUnblockable = true
@@ -13618,6 +13619,8 @@ const spawn = {
         Matter.Body.setDensity(me, 0.00001) 
         me.frictionAir = 0;
         me.shield = true;
+        me.team = mob[mob.length - 2] ? mob[mob.length - 2].team : me.team;
+        me.shieldTargetIDs = targets.slice();
         me.damageReduction = 0.075
         me.collisionFilter.category = cat.mobShield
         me.collisionFilter.mask = cat.bullet;

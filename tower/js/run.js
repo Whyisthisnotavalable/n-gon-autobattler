@@ -185,6 +185,13 @@ function findSpawnPoint(bounds, xRange, tries = 40) {
             return { x, y };
         }
     }
+    for (let i = 0; i < tries; i++) {
+        const x = xRange[0] + Math.random() * (xRange[1] - xRange[0]);
+        const y = bounds.top + Math.random() * (bounds.bottom - bounds.top);
+        if (isPointClear(x, y)) {
+            return { x, y };
+        }
+    }
     return {
         x: xRange[0] + Math.random() * (xRange[1] - xRange[0]),
         y: bounds.top + Math.random() * (bounds.bottom - bounds.top),
@@ -231,19 +238,66 @@ function clearStatusEffects(who) {
     who.isStunned = false;
 }
 
-function repositionSurvivors() {
-    const bounds = getArenaSampleBounds();
-    const xRange = sideRange(bounds, game.playerSide);
-    const survivors = uniqueAliveTeamMobs('A');
-    for (const who of survivors) {
-        const pos = findSpawnPoint(bounds, xRange);
-        Body.setPosition(who, pos);
+function shiftMobConstraints(who, dx, dy) {
+    if (dx === 0 && dy === 0) return;
+    if (who.constraint && who.constraint.pointA) {
+        who.constraint.pointA.x += dx;
+        who.constraint.pointA.y += dy;
+    }
+    for (let i = 0; i < cons.length; i++) {
+        const c = cons[i];
+        if (c.bodyB === who && c.pointA) {
+            c.pointA.x += dx;
+            c.pointA.y += dy;
+        }
+    }
+}
+
+function repositionSurvivor(who, bounds, xRange) {
+    const pos = findSpawnPoint(bounds, xRange);
+    const dx = pos.x - who.position.x, dy = pos.y - who.position.y;
+    Body.setPosition(who, pos);
+    Body.setVelocity(who, { x: 0, y: 0 });
+    Body.setAngularVelocity(who, 0);
+    shiftMobConstraints(who, dx, dy);
+    clearStatusEffects(who);
+    who.seePlayer.yes = false;
+    who.seePlayer.recall = 0;
+}
+
+function repositionSurvivorGroup(segments, bounds, xRange) {
+    const reference = segments[0];
+    const pos = findSpawnPoint(bounds, xRange);
+    const dx = pos.x - reference.position.x, dy = pos.y - reference.position.y;
+    for (const who of segments) {
+        Body.setPosition(who, { x: who.position.x + dx, y: who.position.y + dy });
         Body.setVelocity(who, { x: 0, y: 0 });
         Body.setAngularVelocity(who, 0);
+        shiftMobConstraints(who, dx, dy);
         clearStatusEffects(who);
         who.seePlayer.yes = false;
         who.seePlayer.recall = 0;
     }
+}
+
+function repositionSurvivors() {
+    const bounds = getArenaSampleBounds();
+    const xRange = sideRange(bounds, game.playerSide);
+    const survivors = uniqueAliveTeamMobs('A');
+
+    const groups = new Map();
+    const solo = [];
+    for (const who of survivors) {
+        if (who.softID !== undefined) {
+            if (!groups.has(who.softID)) groups.set(who.softID, []);
+            groups.get(who.softID).push(who);
+        } else {
+            solo.push(who);
+        }
+    }
+
+    for (const who of solo) repositionSurvivor(who, bounds, xRange);
+    for (const segments of groups.values()) repositionSurvivorGroup(segments, bounds, xRange);
 }
 
 function clearNonSurvivors() {
