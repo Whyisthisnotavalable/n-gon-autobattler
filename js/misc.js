@@ -153,6 +153,14 @@ function setupControls() {
         game.place(selectedMob, p.x, p.y, selectedTeam);
     });
 
+    canvas.addEventListener("mousemove", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const px = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const py = (e.clientY - rect.top) * (canvas.height / rect.height);
+        simulation.mouse.x = px;
+        simulation.mouse.y = py;
+    });
+
     window.addEventListener("resize", resizeCanvas);
 }
 
@@ -262,7 +270,6 @@ function mainLoop(now) {
         drawArena();
         updateMouseTransform();
         simulation.drawCircle();
-        simulation.runEphemera();
         mobs.draw();
         simulation.draw.body();
         level.customTopLayer();
@@ -278,6 +285,8 @@ function mainLoop(now) {
         drawHUD();
         simulation.runEphemera();
         ctx.restore();
+        simulation.drawCursor();
+        simulation.mouseInGame = screenToArena(simulation.mouse.x, simulation.mouse.y);
     }
 }
 

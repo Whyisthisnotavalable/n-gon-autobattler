@@ -215,7 +215,6 @@ function setupControls() {
         simulation.mouse.x = px;
         simulation.mouse.y = py;
     });
-    canvas.addEventListener("mouseleave", () => { simulation.mouseInGame = null; });
 
     window.addEventListener("resize", resizeCanvas);
 }

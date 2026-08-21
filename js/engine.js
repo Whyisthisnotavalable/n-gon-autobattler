@@ -274,7 +274,6 @@ const simulation = {
             }
         }
     },
-
     ephemera: [], 
     removeEphemera(who) {
         const i = simulation.ephemera.indexOf(who);
@@ -283,20 +282,16 @@ const simulation = {
     runEphemera() {
         for (let i = 0; i < simulation.ephemera.length; i++) simulation.ephemera[i].do();
     },
-
     energyGenGraphic() { }, 
-
     gravity() {
         for (let i = 0, len = body.length; i < len; i++) {
             body[i].force.y += body[i].mass * simulation.g;
         }
     },
-
     wipe() {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     },
-
     checkLineIntersection(v1, v1End, v2, v2End) {
         let result = { x: null, y: null, onLine1: false, onLine2: false };
         const denominator = (v2End.y - v2.y) * (v1End.x - v1.x) - (v2End.x - v2.x) * (v1End.y - v1.y);
@@ -311,7 +306,6 @@ const simulation = {
         if (b > 0 && b < 1) result.onLine2 = true;
         return result;
     },
-
     draw: {
         bodyDefault() {
             ctx.beginPath();
@@ -343,6 +337,25 @@ const simulation = {
             ctx.stroke();
         },
     },
+    drawCursor() {
+        const size = 10;
+        ctx.beginPath();
+        ctx.moveTo(simulation.mouse.x - size, simulation.mouse.y);
+        ctx.lineTo(simulation.mouse.x + size, simulation.mouse.y);
+        ctx.moveTo(simulation.mouse.x, simulation.mouse.y - size);
+        ctx.lineTo(simulation.mouse.x, simulation.mouse.y + size);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#000"; //'rgba(0,0,0,0.4)'
+        ctx.stroke(); // Draw it
+    },
+    mouse: {
+        x: 0,
+        y: 0
+    },
+    mouseInGame: {
+        x: 0,
+        y: 0
+    }
 };
 
 function vertexCollision(v1, v1End, domains) {
