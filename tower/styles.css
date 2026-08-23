@@ -270,6 +270,67 @@
 .color-d {
     color: var(--team-a);
 }
+#lore-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 20, 24, 0.45);
+    z-index: 20;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.25s linear;
+    pointer-events: none;
+}
+
+#lore-panel {
+    position: fixed;
+    left: 50%;
+    bottom: 48px;
+    transform: translateX(-50%);
+
+    z-index: 21;
+    width: 560px;
+    max-width: 90vw;
+
+    background: var(--card-color);
+    border: 1px solid #444;
+    border-radius: 5px;
+
+    padding: 12px 16px;
+
+    color: var(--ink);
+    font-size: 1em;
+    line-height: 155%;
+
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.25s linear;
+
+    cursor: pointer;
+}
+
+.lore-speaker {
+    display: block;
+
+    font-weight: 700;
+    font-size: 0.75em;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+
+    margin-bottom: 4px;
+
+    color: var(--sub);
+}
+
+.lore-continue-hint {
+    display: block;
+
+    margin-top: 10px;
+
+    font-size: 0.65em;
+    color: #888;
+
+    text-align: right;
+}
 
 #choose-grid-backdrop {
     position: fixed;

@@ -1869,12 +1869,24 @@ const spawn = {
 
         const k = 642 
         me.split = function () {
-            const scale = 0.45
+            let count = 0;
+            for (let i = 0, len = mob.length; i < len; i++) {
+                if (mob[i].isCell && mob[i].cellID === this.cellID) {
+                    count++;
+                }
+            }
+            if (count >= 500) return;
+            const scale = 0.45;
             Matter.Body.scale(this, scale, scale);
             this.radius *= scale;
-            spawn.cellBoss(this.position.x, this.position.y, this.radius, this.cellID);
-            mob[mob.length - 1].health = this.health
-        }
+            spawn.cellBoss(
+                this.position.x,
+                this.position.y,
+                this.radius,
+                this.cellID
+            );
+            mob[mob.length - 1].health = this.health;
+        };
         me.onHit = function () { 
             this.health = 1;
             this.split();

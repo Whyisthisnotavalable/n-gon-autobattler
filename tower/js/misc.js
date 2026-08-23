@@ -516,6 +516,90 @@ function mainLoop(now) {
 
 requestAnimationFrame(mainLoop);
 
+const loreInteraction = {
+    unlockKey: "undefined",
+    countKey: "auto-gon-lore-count",
+    chapters: [
+        [
+            { speaker: "System", color: "#888", text: "External signal detected." },
+            { speaker: "System", color: "#888", text: "Source unknown." },
+            { speaker: "System", color: "#888", text: "Signal does not belong to this simulation." },
+            { speaker: "System", color: "#888", text: "Connection established." },
+        ],
+    ],
+    chapterIndex: 0,
+    lineIndex: 0,
+    onComplete: null,
+    ending: false,
+    shouldShow() {
+        const count = Number(localStorage.getItem(this.countKey) || 0);
+        return !!localStorage.getItem(this.unlockKey) && count < this.chapters.length;
+    },
+    start(onComplete) {
+        this.onComplete = onComplete;
+        this.chapterIndex = Number(localStorage.getItem(this.countKey) || 0);
+        this.lineIndex = 0;
+        this.ending = false;
+
+        const backdrop = document.getElementById("lore-backdrop");
+        const panel = document.getElementById("lore-panel");
+
+        backdrop.style.visibility = "visible";
+        backdrop.style.opacity = "1";
+        panel.style.visibility = "visible";
+        panel.style.opacity = "1";
+
+        panel.onclick = () => this.advance();
+
+        this.render();
+    },
+    render() {
+        const panel = document.getElementById("lore-panel");
+        const chapter = this.chapters[this.chapterIndex];
+        const line = chapter[this.lineIndex];
+        const isLast = this.lineIndex === chapter.length - 1;
+
+        panel.innerHTML = `
+            <span class="lore-speaker" style="color:${line.color}">
+                ${line.speaker}
+            </span>
+            <div class="lore-text">${line.text}</div>
+            <span class="lore-continue-hint">
+                ${isLast ? "click to close" : "click to continue"}
+            </span>
+        `;
+    },
+    advance() {
+        if (this.ending) return;
+        const chapter = this.chapters[this.chapterIndex];
+        this.lineIndex++;
+        if (this.lineIndex >= chapter.length) {
+            this.end();
+        } else {
+            this.render();
+        }
+    },
+    end() {
+        if (this.ending) return;
+        this.ending = true;
+        const count = Number(localStorage.getItem(this.countKey) || 0);
+        localStorage.setItem(this.countKey, String(count + 1));
+        const backdrop = document.getElementById("lore-backdrop");
+        const panel = document.getElementById("lore-panel");
+        panel.onclick = null;
+        backdrop.style.opacity = "0";
+        panel.style.opacity = "0";
+        setTimeout(() => {
+            backdrop.style.visibility = "hidden";
+            panel.style.visibility = "hidden";
+            if (this.onComplete) {
+                const callback = this.onComplete;
+                this.onComplete = null;
+                callback();
+            }
+        }, 400);
+    },
+};
 window.onload = function () {
     canvas = document.getElementById("canvas");
     ctx = canvas.getContext("2d");
@@ -529,17 +613,33 @@ window.onload = function () {
     // });
     // Composite.add(engine.world, mouseConstraint);
     resizeCanvas();
-    level.final();
-    buildRosterUI();
-    setupControls();
-    selectMob("slasher", document.querySelector('.mob-btn[data-name="slasher"]'));
-    updateCameraFit();
-    powerUps.setPowerUpMode();
-    game.currency = shop.startingCurrency;
-    game.unlockedTiers = [0, 1];
-    game.unlockedBossTiers = [];
-    syncControls();
-    requestAnimationFrame(mainLoop);
+
+    const params = new URLSearchParams(window.location.search);
+    const event = params.get("event");
+    if (event) {
+        localStorage.setItem("undefined", event);
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    function finishBoot() {
+        level.final();
+        buildRosterUI();
+        setupControls();
+        selectMob("slasher", document.querySelector('.mob-btn[data-name="slasher"]'));
+        updateCameraFit();
+        powerUps.setPowerUpMode();
+        game.currency = shop.startingCurrency;
+        game.unlockedTiers = [0, 1];
+        game.unlockedBossTiers = [];
+        syncControls();
+        requestAnimationFrame(mainLoop);
+    }
+
+    if (loreInteraction.shouldShow()) {
+        loreInteraction.start(finishBoot);
+    } else {
+        finishBoot();
+    }
 };
 
 const fpsSelect = document.createElement("select");
